@@ -1,0 +1,82 @@
+.city-input{
+    padding:10px;
+    margin-top:100px;
+}
+
+.month-input {
+    margin: 120px 0px 0px 666px;
+}
+.calendar {
+    border: #00b280;
+    border-style: solid;
+    border-width: .1px;
+    border-radius: 0px;
+    height: fit-content;
+    width: fit-content;
+    background-color: #000;
+}
+
+thead {
+    display: table-header-group;
+    vertical-align: middle;
+    text-transform: uppercase;
+    font-size: 1.0em;
+    font-weight: bold;
+    border: none;
+    background-color: #00b280;
+}
+tbody, td, tfoot, th, thead, tr {
+    border-color: inherit;
+    border-style: solid;
+    border-width: 0;
+    width: 600px;
+}
+.moon-phase {
+    float: none;
+    height: fit-content;
+    color: #fff;
+}
+
+.moonimg {
+    border-radius: 50%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 50%;
+}
+table {
+    
+    border-collapse: collapse;
+    font-family: Georgia, Times, serif;
+}
+
+th {
+    text-transform: uppercase;
+    font-size: 1.2em;
+    font-weight: bold;
+    border: none;
+    grid-auto-rows: 50px;
+    align-items: center;
+    text-align: center;
+    color: #fff;
+}
+
+td {
+    border: 1px solid #00b280;
+    height: 5em;
+    width: 5em;
+    padding: 5px;
+    /*vertical-align: top;*/
+}
+
+.prosA{
+   color:#fff;
+
+}
+.prosP {
+    color: #00b280;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+

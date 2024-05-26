@@ -6,6 +6,7 @@ import {
 
 export let statusPath = "/api/main/status";
 export let focusPath = "/api/main/focus?target=";
+export let focusPosPath = "/api/main/focus?position=";
 export let objectInfoPath = "/api/objects/info?format=json";
 
 export let catalogs = ["C", "Ced", "HIP", "IC", "LBN", "M", "NGC", "PGC"];
@@ -28,7 +29,7 @@ export function parseStellariumData(text: string): ParsedStellariumData {
 
 function parseRADec(text: string) {
   let matches = text.match(
-    /RA\/Dec \(J2000.0\): *([-0-9hms.+°]+)\/([-0-9.+°'"]+)/
+    /(?:[A-Za-z]+ *: *)?(?:RA\/Dec)? \(J2000.0\): *([-0-9hms.+°]+)\/([-0-9.+°'"]+)/
   );
   if (matches) {
     return { RA: matches[1], declination: matches[2] };

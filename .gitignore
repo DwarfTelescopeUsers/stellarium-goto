@@ -199,3 +199,9 @@ cython_debug/
 
 
 raw_data/mike_camilleri_list.csv
+
+.vs/
+src-tauri/target/
+/.vs
+.vscode/
+package-lock.json

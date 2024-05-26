@@ -3,7 +3,11 @@ import {
   getRiseSetTimeLocal,
   getRiseSetTimePlanet,
   computeRaDecToAltAz,
+  computealtAzToHADec,
 } from "@/lib/astro_utils";
+
+import { ConvertStrDeg, ConvertStrHours } from "@/lib/math_utils";
+
 import { AstroObject } from "@/types";
 import { julian } from "astronomia";
 
@@ -19,12 +23,16 @@ let Vega: AstroObject = {
   objectNumber: 0,
   constellation: "",
   alternateNames: "",
+  notes: "",
+  favorite: false,
 };
 // NYC -4, HK +8
 let lat_NYC = 40.7128;
 let lon_NYC = -74.006;
 let lat_HK = 22.3964;
 let lon_HK = 114.1095;
+let lat_BUK = 52.5;
+let lon_BUK = -1.9166667;
 
 describe("getRiseSetTime", () => {
   // https://github.com/commenthol/astronomia/blob/master/test/rise.test.js
@@ -41,6 +49,8 @@ describe("getRiseSetTime", () => {
       objectNumber: 0,
       constellation: "",
       alternateNames: "",
+      notes: "",
+      favorite: false,
     };
     let expected = {
       rise: {
@@ -228,6 +238,8 @@ describe("getRiseSetTimePlanet", () => {
       objectNumber: 0,
       constellation: "",
       alternateNames: "",
+      notes: "",
+      favorite: false,
     };
     let expected = {
       rise: { hours: 12, minutes: 26, seconds: 9 },
@@ -242,17 +254,129 @@ describe("getRiseSetTimePlanet", () => {
 
 describe("computeRaDecToAltAz", () => {
   it("returns alt Az data for a given RA and Dec", () => {
+    let lat = 48.8604;
+    let lon = -2.3416;
+    let ra = 155.74407; // 10.382938 * 15;
+    let dec = 249.382988;
+    let date = new Date("2023-09-03T11:48:00.000Z").toISOString();
+    let expected = {
+      alt: -65.21173910755353,
+      az: 23.872691425100033,
+      lst: 126.9358037863104,
+      H: -28.808266213689613,
+    };
+    // Alt:-065° 12' 42.26"
+    // Az: +023° 52' 21.69"
+
+    let res = computeRaDecToAltAz(lat, lon, ra, dec, date, "Europe/Paris");
+
+    expect(res).toEqual(expected);
+  });
+});
+
+describe("computeRaDecToAltAz2", () => {
+  it("returns alt Az data for a given RA and Dec", () => {
+    let lat = lat_BUK;
+    let lon = lon_BUK;
+    let ra = 250.425; //16.695 * 15;
+    let dec = 36.466667;
+    let date = new Date("1998-08-10T23:10:00.000Z").toISOString();
+    let expected = {
+      alt: 66.59556592349702,
+      az: 236.426219940173,
+      lst: 274.72590996099535,
+      H: 24.300909960995305,
+    };
+    // Alt:+066° 35' 44.04"
+    // Az: +236° 25' 34.39"
+
+    let res = computeRaDecToAltAz(lat, lon, ra, dec, date, "Europe/London");
+
+    expect(res).toEqual(expected);
+  });
+});
+
+describe("computeRaDecToAltAz3", () => {
+  it("returns alt Az data for a given RA and Dec", () => {
     let lat = lat_NYC;
     let lon = lon_NYC;
     let ra = 250.43;
     let dec = 36.462;
-    let date = new Date("2023-07-02T00:00:00.000Z");
+    let date = new Date("2023-07-02T00:00:00.000Z").toISOString();
     let expected = {
-      alt: 55.298005362032455,
-      az: 83.1259043187447,
+      alt: 33.2365033470588,
+      az: 68.06958033581921,
+      lst: 175.69100956021043,
+      H: -74.73899043978955,
     };
 
-    let res = computeRaDecToAltAz(lat, lon, ra, dec, date);
+    let res = computeRaDecToAltAz(lat, lon, ra, dec, date, "America/New_York");
+
+    expect(res).toEqual(expected);
+  });
+});
+
+describe("computealtAzToHADec", () => {
+  it("returns Ra and Dec data for a given lat, alt, Az end lst", () => {
+    let lat = lat_NYC;
+    let lon = lon_NYC;
+    let alt = 33.2365033470588;
+    let az = 68.06958033581921;
+    let date = new Date("2023-07-02T00:00:00.000Z").toISOString();
+
+    let expected = {
+      ra: 250.43,
+      dec: 36.46200000000001,
+      lst: 175.69100956021043,
+      H: -74.73899043978955,
+    };
+
+    let res = computealtAzToHADec(lat, lon, alt, az, date, "America/New_York");
+
+    expect(res).toEqual(expected);
+  });
+});
+
+describe("computeRaDecToAltAz4", () => {
+  it("returns alt Az data for a given RA and Dec", () => {
+    let lat = 47.3289982886079;
+    let lon = -1.69547918589427;
+    let ra = 18.615638666 * 15; //279,23457999; //18h 36m 56.3
+    let dec = 38.783692; //+38° 47' 01.29
+    let date = new Date("2023-09-15T18:27:00.000Z").toISOString();
+    let expected = {
+      alt: 60.05001962489055,
+      az: 91.81046846830218,
+      lst: 239.43279957904966,
+      H: -39.80178041095034,
+    };
+
+    let res = computeRaDecToAltAz(lat, lon, ra, dec, date, "Europe/Paris");
+    console.log("alt:" + ConvertStrDeg(res.alt));
+    console.log("az:" + ConvertStrDeg(res.az));
+
+    expect(res).toEqual(expected);
+  });
+});
+
+describe("computealtAzToHADec4", () => {
+  it("returns Ra and Dec data for a given lat, alt, Az end lst", () => {
+    let lat = 47.3289982886079;
+    let lon = -1.69547918589427;
+    let alt = 60.05001962489055;
+    let az = 91.81046846830218;
+    let date = new Date("2023-09-15T18:27:00.000Z").toISOString();
+
+    let expected = {
+      ra: 279.23457999,
+      dec: 38.783692,
+      lst: 239.43279957904966,
+      H: -39.80178041095034,
+    };
+
+    let res = computealtAzToHADec(lat, lon, alt, az, date, "Europe/Paris");
+    console.log("RA:" + ConvertStrHours(res.ra / 15));
+    console.log("DEC:" + ConvertStrDeg(res.dec));
 
     expect(res).toEqual(expected);
   });

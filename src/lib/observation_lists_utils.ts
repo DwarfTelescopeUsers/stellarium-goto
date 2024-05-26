@@ -24,6 +24,8 @@ function formatObjectStellarium(object: ObjectStellarium): AstroObject {
       abbrevNameConstellations[
         object.constellation as keyof typeof abbrevNameConstellations
       ],
+    notes: "",
+    favorite: false,
   } as AstroObject;
 
   if (object.designation) {
@@ -62,18 +64,20 @@ export function processObjectListOpenNGC(objects: ObjectOpenNGC[]) {
   return objects
     .map((object) => {
       return {
-        dec: foramtOpenNGCDec(object.Declination),
+        dec: formatOpenNGCDec(object.Declination),
         designation: object["Catalogue Entry"],
         magnitude: object.Magnitude,
         type: object.Type,
         typeCategory: object["Type Category"],
-        ra: foramtOpenNGCRA(object["Right Ascension"]),
+        ra: formatOpenNGCRA(object["Right Ascension"]),
         displayName: formatObjectNameOpenNGC(object),
         alternateNames: object["Alternative Entries"],
         catalogue: object["Name catalog"],
         objectNumber: object["Name number"],
         constellation: object.Constellation,
         size: formatObjectSizeOpenNGC(object),
+        notes: object.Notes,
+        favorite: false,
       };
     })
     .sort((a, b) => {
@@ -84,7 +88,7 @@ export function processObjectListOpenNGC(objects: ObjectOpenNGC[]) {
     });
 }
 
-function foramtOpenNGCRA(ra: string | null): string | null {
+function formatOpenNGCRA(ra: string | null): string | null {
   if (ra === null) {
     return ra;
   }
@@ -95,7 +99,7 @@ function foramtOpenNGCRA(ra: string | null): string | null {
   return ra;
 }
 
-function foramtOpenNGCDec(dec: string | null): string | null {
+function formatOpenNGCDec(dec: string | null): string | null {
   if (dec === null) {
     return dec;
   }
@@ -107,7 +111,7 @@ function foramtOpenNGCDec(dec: string | null): string | null {
 }
 
 function formatObjectSizeOpenNGC(object: ObjectOpenNGC) {
-  let sizes = [];
+  let sizes: string[] = [];
   if (object["Height (')"] || object["Width (')"]) {
     if (object["Height (')"]) {
       sizes.push(object["Height (')"] + "'");
@@ -136,11 +140,13 @@ function formatObjectNameOpenNGC(object: ObjectOpenNGC) {
 }
 
 export function processObjectListTelescopius(objects: ObjectTelescopius[]) {
+  objects.forEach(formatObjectMosaicTelescopius);
+
   return objects
     .filter((object) => object["Catalogue Entry"])
     .map((object, index) => {
       let data = {
-        dec: foramtTelescopiusDec(object.Declination),
+        dec: formatTelescopiusDec(object.Declination),
         designation: object["Catalogue Entry"],
         magnitude: object.Magnitude,
         type: object.Type,
@@ -148,7 +154,7 @@ export function processObjectListTelescopius(objects: ObjectTelescopius[]) {
           typesTypesCategories[
             object.Type as keyof typeof typesTypesCategories
           ],
-        ra: foramtTelescopiusRA(object["Right Ascension"]),
+        ra: formatTelescopiusRA(object["Right Ascension"]),
         displayName: formatObjectNameTelescopius(object),
         alternateNames: object["Alternative Entries"],
         constellation: object.Constellation,
@@ -173,7 +179,7 @@ export function processObjectListTelescopius(objects: ObjectTelescopius[]) {
     });
 }
 
-function foramtTelescopiusRA(ra: string | null): string | null {
+function formatTelescopiusRA(ra: string | null): string | null {
   if (ra === null) {
     return ra;
   }
@@ -185,10 +191,12 @@ function foramtTelescopiusRA(ra: string | null): string | null {
   return ra;
 }
 
-function foramtTelescopiusDec(dec: string | null): string | null {
+function formatTelescopiusDec(dec: string | null): string | null {
   if (dec === null) {
     return dec;
   }
+
+  dec = dec.replace("º", "°");
   dec = dec.replace('""', '"');
   let data = convertDMSToDwarfDec(dec);
   if (data) {
@@ -203,4 +211,20 @@ function formatObjectNameTelescopius(object: ObjectTelescopius) {
     name += ` - ${object["Familiar Name"]}`;
   }
   return name;
+}
+
+function formatObjectMosaicTelescopius(object: ObjectTelescopius) {
+  let name = object["Catalogue Entry"];
+  if (
+    !name &&
+    object["Familiar Name"] &&
+    object["Familiar Name"].includes("- pane")
+  ) {
+    object["Catalogue Entry"] = object["Familiar Name"];
+    object["Familiar Name"] = "";
+    object.Type = "Mosaic";
+  } else if (name && name.includes("- pane")) {
+    object.Type = "Mosaic";
+    if (name == object["Familiar Name"]) object["Familiar Name"] = "";
+  }
 }

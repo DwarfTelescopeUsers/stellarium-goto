@@ -1,13 +1,28 @@
 /* eslint react/no-unescaped-entities: 0 */
 
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 import { ConnectionContext } from "@/stores/ConnectionContext";
 import { statusPath, parseStellariumData } from "@/lib/stellarium_utils";
 import { AstroObject, ParsedStellariumData } from "@/types";
-import { startGotoHandler, stellariumErrorHandler } from "@/lib/goto_utils";
-import { convertDMSToDwarfDec, convertHMSToDwarfRA } from "@/lib/math_utils";
+import {
+  startGotoHandler,
+  stellariumErrorHandler,
+  centerCoordinatesHandler,
+} from "@/lib/goto_utils";
+import {
+  padNumber,
+  convertDMSToDwarfDec,
+  convertHMSToDwarfRA,
+  convertHMSToDecimalHours,
+  convertDecimalHoursToHMS,
+  convertDMSToDecimalDegrees,
+  convertDecimalDegreesToDMS,
+} from "@/lib/math_utils";
 import GotoModal from "./astroObjects/GotoModal";
+import ImportManualModal from "./ImportManualModal";
 
 type Message = {
   [k: string]: string;
@@ -16,11 +31,24 @@ export default function ManualGoto() {
   let connectionCtx = useContext(ConnectionContext);
   const [errors, setErrors] = useState<string | undefined>();
   const [gotoErrors, setGotoErrors] = useState<string | undefined>();
+  const [gotoSuccess, setGotoSuccess] = useState<string | undefined>();
   const [RA, setRA] = useState<string | undefined>();
   const [declination, setDeclination] = useState<string | undefined>();
   const [objectName, setObjectName] = useState<string | undefined>();
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [gotoMessages, setGotoMessages] = useState<Message[]>([] as Message[]);
+  const prevErrors = usePrevious(gotoErrors);
+  const prevSuccess = usePrevious(gotoSuccess);
+
+  // custom hook for getting previous value
+  function usePrevious(value: any) {
+    const ref = useRef();
+    useEffect(() => {
+      ref.current = value;
+    }, [value]);
+    return ref.current;
+  }
 
   function noObjectSelectedHandler() {
     setErrors("You must select an object in Stellarium.");
@@ -50,6 +78,7 @@ export default function ManualGoto() {
   function resetData() {
     setErrors(undefined);
     setGotoErrors(undefined);
+    setGotoSuccess(undefined);
     setDeclination(undefined);
     setRA(undefined);
   }
@@ -92,82 +121,224 @@ export default function ManualGoto() {
     }
   }
 
+  function changeCoordinate(RA_dif: number = 0, dec_diff: number = 0) {
+    let RA_number = 0;
+
+    if (RA_dif) {
+      if (RA) RA_number = convertHMSToDecimalHours(RA);
+      let new_RA = RA_number + RA_dif;
+      let { hour, minute, second } = convertDecimalHoursToHMS(new_RA);
+      setRA(`${hour}h ${minute}m ${second}s`);
+    }
+    if (dec_diff) {
+      let declination_number = declination
+        ? convertDMSToDecimalDegrees(declination!)
+        : 0;
+      let new_dec = declination_number + dec_diff;
+      let { degree, minute, second, negative } =
+        convertDecimalDegreesToDMS(new_dec);
+      let secondParts = second.toString().split(".");
+      let secondStr = padNumber(Number(secondParts[0]));
+      if (secondParts[1]) {
+        secondStr = secondStr + "." + secondParts[1];
+      }
+      let newDec = `${padNumber(degree)}° ${padNumber(minute)}' ${secondStr}"`;
+
+      setDeclination(negative ? "-" + newDec : "+" + newDec);
+    }
+  }
+
+  function importManualData() {
+    setShowImportModal(true);
+  }
+
   function gotoFn() {
-    setShowModal(true);
+    setShowModal(connectionCtx.loggerView);
+
     startGotoHandler(
       connectionCtx,
       setGotoErrors,
+      setGotoSuccess,
       undefined,
       RA,
       declination,
+      objectName,
       (options) => {
         setGotoMessages((prev) => prev.concat(options));
       }
     );
   }
 
+  const { t } = useTranslation();
+  // eslint-disable-next-line no-unused-vars
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setSelectedLanguage(storedLanguage);
+      i18n.changeLanguage(storedLanguage);
+    }
+  }, []);
+
   return (
     <div>
       {!connectionCtx.connectionStatusStellarium && (
-        <p className="text-danger">
-          You must connect to Stellarium for Import Data to work.
-        </p>
+        <p className="text-danger">{t("cGoToStellariumConnectStellarium")}</p>
       )}
       {!connectionCtx.connectionStatus && (
-        <p className="text-danger">
-          You must connect to Dwarf II for Goto to work.
-        </p>
+        <p className="text-danger">{t("cGoToListConnectDwarf")}</p>
       )}
 
-      <p>You can use Stellarium to help pick objects.</p>
+      <p>{t("cGoToStellariumPickObject")}</p>
       <ol>
-        <li>Select an object in Stellarium.</li>
-        <li>
-          Import right acension and declination from Stellarium by clicking
-          'Import Data'.
-        </li>
-        <li>Start goto by clicking 'Goto'</li>
+        <li>{t("cGoToStellariumListTitle")}</li>
+        <li>{t("cGoToStellariumList1")}</li>
+        <li>{t("cGoToStellariumList2")}</li>
       </ol>
       <button
         className={`btn ${
           connectionCtx.connectionStatusStellarium
-            ? "btn-primary"
-            : "btn-secondary"
-        } mb-3`}
+            ? "btn btn-more02"
+            : "btn-more02"
+        } me-4 mb-3`}
         onClick={fetchStellariumData}
         disabled={!connectionCtx.connectionStatusStellarium}
       >
-        Import Data
+        {t("cGoToStellariumImportData")}
+      </button>
+      <button
+        className={`btn btn btn-more02
+        } me-4 mb-3`}
+        onClick={importManualData}
+      >
+        {t("cGoToStellariumImportManualData")}
       </button>
       {errors && <p className="text-danger">{errors}</p>}
       <div className="row mb-3">
-        <div className="col-sm-4">Latitude</div>
+        <div className="col-sm-4">{t("pLatitude")}</div>
         <div className="col-sm-8">{connectionCtx.latitude}</div>
       </div>
       <div className="row mb-3">
-        <div className="col-sm-4">Longitude</div>
+        <div className="col-sm-4">{t("pLongitude")}</div>
         <div className="col-sm-8">{connectionCtx.longitude}</div>
       </div>
       <div className="row mb-3">
-        <div className="col-sm-4">Object</div>
+        <div className="col-sm-4">{t("cGoToStellariumObject")}</div>
         <div className="col-sm-8">{objectName}</div>
       </div>
       <div className="row mb-3">
-        <div className="col-sm-4">Right Acension</div>
+        <div className="col-sm-4">{t("cGoToStellariumRightAscension")}</div>
         <div className="col-sm-8">{RA}</div>
       </div>
       <div className="row mb-3">
-        <div className="col-sm-4">Declination</div>
+        <div className="col-sm-4">{t("cGoToStellariumDeclination")}</div>
         <div className="col-sm-8">{declination}</div>
       </div>
-      <button
-        className={`btn ${RA !== undefined ? "btn-primary" : "btn-secondary"}`}
-        onClick={gotoFn}
-        disabled={RA === undefined}
-      >
-        Goto
-      </button>
-      {gotoErrors && <p className="text-danger">{gotoErrors}</p>}
+      <div className="row mb-3">
+        <div className="col-sm-4">
+          <button
+            className={`btn ${
+              RA !== undefined ? "btn-more02" : "btn-more02"
+            } me-4 mb-2`}
+            onClick={gotoFn}
+            disabled={!connectionCtx.connectionStatus || RA === undefined}
+          >
+            Goto
+          </button>
+        </div>
+        <div className="col-sm-8">
+          <button
+            className={`btn ${
+              RA !== undefined ? "btn-more02" : "btn-more02"
+            } me-4 mb-4`}
+            onClick={() =>
+              centerCoordinatesHandler(
+                RA,
+                declination,
+                connectionCtx,
+                setErrors
+              )
+            }
+            disabled={
+              !connectionCtx.connectionStatusStellarium || RA === undefined
+            }
+          >
+            {t("cGoToStellariumCenter")}
+          </button>
+          <button
+            className={`btn ${
+              RA !== undefined ? "btn-more02" : "btn-more02"
+            } me-2 mb-4`}
+            onClick={() => changeCoordinate(+1 / 60, 0)}
+            disabled={RA === undefined}
+          >
+            RA + 1 min
+          </button>
+          <button
+            className={`btn ${
+              RA !== undefined ? "btn-more02" : "btn-more02"
+            } me-2 mb-4`}
+            onClick={() => changeCoordinate(-1 / 60, 0)}
+            disabled={RA === undefined}
+          >
+            RA - 1 min
+          </button>
+          <button
+            className={`btn ${
+              RA !== undefined ? "btn-more02" : "btn-more02"
+            } me-2 mb-4`}
+            onClick={() => changeCoordinate(0, +0.1)}
+            disabled={RA === undefined}
+          >
+            Dec + 0.1°
+          </button>
+          <button
+            className={`btn ${
+              RA !== undefined ? "btn-more02" : "btn-more02"
+            } mb-4`}
+            onClick={() => changeCoordinate(0, -0.1)}
+            disabled={RA === undefined}
+          >
+            Dec - 0.1°
+          </button>
+        </div>
+      </div>
+      <div className="row mb-3">
+        <div className="col-sm-4">
+          {prevErrors && <span className="text-danger"> {prevErrors} </span>}
+          {gotoErrors && gotoErrors != prevErrors && (
+            <span className="text-danger">{gotoErrors} </span>
+          )}
+          {prevSuccess && <span className="text-success"> {prevSuccess} </span>}
+          {gotoSuccess && gotoSuccess != prevSuccess && (
+            <span className="text-danger">{gotoSuccess} </span>
+          )}
+        </div>
+      </div>
+      <div className="row mb-3">
+        <div className="col-sm-4 text-end">
+          <p>
+            {t("cGoToStellariumMoveCenter")}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          </p>
+        </div>
+        <div className="col-sm-8">
+          <ol>
+            <li>{t("cGoToStellariumMoveCenterli1")}</li>
+            <li>{t("cGoToStellariumMoveCenterli2")}</li>
+            <li>{t("cGoToStellariumMoveCenterli3")}</li>
+            <li>{t("cGoToStellariumMoveCenterli4")}</li>
+            <li>{t("cGoToStellariumMoveCenterli5")}</li>
+          </ol>
+        </div>
+      </div>
+      <ImportManualModal
+        showImportModal={showImportModal}
+        setShowImportModal={setShowImportModal}
+        setRA={setRA}
+        setDeclination={setDeclination}
+        setObjectName={setObjectName}
+      />
       <GotoModal
         object={
           {

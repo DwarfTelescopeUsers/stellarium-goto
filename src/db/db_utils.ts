@@ -1,8 +1,13 @@
 import { CoordinatesData } from "@/types";
 
-export function saveCoordinatesDB(latitude: number, longitude: number) {
+export function saveCoordinatesDB(
+  latitude: number,
+  longitude: number,
+  timezone: string
+) {
   localStorage.setItem("latitude", latitude.toString());
   localStorage.setItem("longitude", longitude.toString());
+  localStorage.setItem("timezone", timezone);
 }
 
 export function saveLatitudeDB(latitude: number) {
@@ -11,6 +16,10 @@ export function saveLatitudeDB(latitude: number) {
 
 export function saveLongitudeDB(longitude: number) {
   localStorage.setItem("longitude", longitude.toString());
+}
+
+export function saveTimezoneDB(timezone: string) {
+  localStorage.setItem("timezone", timezone);
 }
 
 export function fetchCoordinatesDB(): CoordinatesData {
@@ -23,6 +32,16 @@ export function fetchCoordinatesDB(): CoordinatesData {
   }
 }
 
+export function fetchTimezoneDB(): string {
+  let tzone = localStorage.getItem("timezone");
+
+  if (tzone) {
+    return tzone;
+  } else {
+    return "";
+  }
+}
+
 export function saveConnectionStatusDB(status: boolean) {
   localStorage.setItem("connectionStatus", status ? "true" : "false");
 }
@@ -30,7 +49,8 @@ export function saveConnectionStatusDB(status: boolean) {
 export function fetchConnectionStatusDB(): boolean | undefined {
   let status = localStorage.getItem("connectionStatus");
   if (status) {
-    return status === "true";
+    // Initial Value deconnected
+    return false;
   }
 }
 
@@ -56,6 +76,39 @@ export function fetchIPDwarfDB(): string | undefined {
   }
 }
 
+export function saveBlePWDDwarfDB(ble_pwd: string) {
+  localStorage.setItem("BlePWDDwarf", ble_pwd);
+}
+
+export function fetchBlePWDDwarfDB(): string | undefined {
+  let data = localStorage.getItem("BlePWDDwarf");
+  if (data) {
+    return data;
+  } else return "DWARF_12345678";
+}
+
+export function saveBleSTASSIDDwarfDB(ble_STA_ssid: string) {
+  localStorage.setItem("BleSTASSIDDwarf", ble_STA_ssid);
+}
+
+export function fetchBleSTASSIDDwarfDB(): string | undefined {
+  let data = localStorage.getItem("BleSTASSIDDwarf");
+  if (data) {
+    return data;
+  }
+}
+
+export function saveBleSTAPWDDwarfDB(ble_STA_pwd: string) {
+  localStorage.setItem("BleSTAPWDDwarf", ble_STA_pwd);
+}
+
+export function fetchBleSTAPWDDwarfDB(): string | undefined {
+  let data = localStorage.getItem("BleSTAPWDDwarf");
+  if (data) {
+    return data;
+  }
+}
+
 export function saveConnectionStatusStellariumDB(status: boolean) {
   localStorage.setItem("connectionStatusStellarium", status ? "true" : "false");
 }
@@ -63,7 +116,8 @@ export function saveConnectionStatusStellariumDB(status: boolean) {
 export function fetchConnectionStatusStellariumDB(): boolean | undefined {
   let status = localStorage.getItem("connectionStatusStellarium");
   if (status) {
-    return status === "true";
+    // Initial Value deconnected
+    return false;
   }
 }
 
@@ -97,6 +151,19 @@ export function fetchUrlStellariumDB(): string | undefined {
   let data = localStorage.getItem("urlStellarium");
   if (data) {
     return data;
+  }
+}
+
+export function saveObjectFavoriteNamesDb(name: string) {
+  localStorage.setItem("objectFavoriteNames", name);
+}
+
+export function fetchObjectFavoriteNamesDb(): string[] | undefined {
+  let data = localStorage.getItem("objectFavoriteNames");
+  if (data) {
+    let names = data.split("|");
+    names.sort();
+    return names;
   }
 }
 
@@ -159,6 +226,7 @@ export function fetchAstroSettingsDb() {
       "fileFormat",
       "gain",
       "gainMode",
+      "qualityPreview",
     ].forEach((field) => {
       if (obj[field] !== undefined) {
         if (/^\d+$/.test(obj[field])) {
@@ -191,9 +259,25 @@ export function fetchImagingSessionDb() {
   let data = localStorage.getItem("imagingSession");
   if (data) {
     let obj = JSON.parse(data);
-    ["startTime", "imagesTaken"].forEach((field) => {
+    [
+      "startTime",
+      "imagesTaken",
+      "imagesStacked",
+      "isRecording",
+      "isStackedCountStart",
+      "endRecording",
+      "isGoLive",
+    ].forEach((field) => {
       if (obj[field] !== undefined) {
-        obj[field] = Number(obj[field]);
+        // Check if the value is a string representation of 'true' or 'false'
+        let value = obj[field];
+        if (value === "true") {
+          obj[field] = true;
+        } else if (value === "false") {
+          obj[field] = false;
+        } else {
+          obj[field] = Number(obj[field]);
+        }
       }
     });
 
@@ -238,6 +322,28 @@ export function fetchLoggerStatusDb(): boolean | undefined {
 
 export function saveLoggerStatusDb(value: string): void {
   localStorage.setItem("loggerStatus", value);
+}
+
+export function fetchLoggerViewDb(): boolean | undefined {
+  let data = localStorage.getItem("loggerView");
+  if (data) {
+    return data === "true" ? true : false;
+  } else false;
+}
+
+export function saveLoggerViewDb(value: string): void {
+  localStorage.setItem("loggerView", value);
+}
+
+export function fetchPiPViewDb(): boolean | undefined {
+  let data = localStorage.getItem("PiPView");
+  if (data) {
+    return data === "true" ? true : false;
+  } else false;
+}
+
+export function savePiPViewDb(value: string): void {
+  localStorage.setItem("PiPView", value);
 }
 
 export function fetchLogMessagesDb() {

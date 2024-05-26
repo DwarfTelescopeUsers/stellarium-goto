@@ -18,12 +18,16 @@ export default function PlanetObject(props: AstronomyObjectPropType) {
 
   let connectionCtx = useContext(ConnectionContext);
   const [errors, setErrors] = useState<string | undefined>();
+  const [success, setSuccess] = useState<string | undefined>();
   const [showModal, setShowModal] = useState(false);
   const [gotoMessages, setGotoMessages] = useState<Message[]>([] as Message[]);
 
   useEffect(() => {
     eventBus.on("clearErrors", () => {
       setErrors(undefined);
+    });
+    eventBus.on("clearSuccess", () => {
+      setSuccess(undefined);
     });
   }, []);
 
@@ -52,29 +56,35 @@ export default function PlanetObject(props: AstronomyObjectPropType) {
   function gotoFn() {
     let planet = -1;
     if (object.displayName === "Mercury") {
-      planet = 0;
-    } else if (object.displayName === "Venus") {
       planet = 1;
-    } else if (object.displayName === "Mars") {
+    } else if (object.displayName === "Venus") {
       planet = 2;
-    } else if (object.displayName === "Jupiter") {
+    } else if (object.displayName === "Mars") {
       planet = 3;
-    } else if (object.displayName === "Saturn") {
+    } else if (object.displayName === "Jupiter") {
       planet = 4;
-    } else if (object.displayName === "Uranus") {
+    } else if (object.displayName === "Saturn") {
       planet = 5;
-    } else if (object.displayName === "Neptune") {
+    } else if (object.displayName === "Uranus") {
       planet = 6;
+    } else if (object.displayName === "Neptune") {
+      planet = 7;
+    } else if (object.displayName === "Moon") {
+      planet = 8;
+    } else if (object.displayName === "Sun") {
+      planet = 9;
     } else {
       planet = 7;
     }
-    setShowModal(true);
+    setShowModal(connectionCtx.loggerView);
     startGotoHandler(
       connectionCtx,
       setErrors,
+      setSuccess,
       planet,
       undefined,
       undefined,
+      object.displayName,
       (options) => {
         setGotoMessages((prev) => prev.concat(options));
       }
@@ -95,7 +105,7 @@ export default function PlanetObject(props: AstronomyObjectPropType) {
           <button
             className={`btn ${
               connectionCtx.connectionStatusStellarium
-                ? "btn-primary"
+                ? "btn btn-more02"
                 : "btn-secondary"
             } me-2 mb-2`}
             onClick={() => centerHandler(object, connectionCtx, setErrors)}
@@ -105,7 +115,9 @@ export default function PlanetObject(props: AstronomyObjectPropType) {
           </button>
           <button
             className={`btn ${
-              connectionCtx.connectionStatus ? "btn-primary" : "btn-secondary"
+              connectionCtx.connectionStatus
+                ? "btn btn-more02"
+                : "btn-secondary"
             } mb-2`}
             onClick={gotoFn}
             disabled={!connectionCtx.connectionStatus}
@@ -121,6 +133,7 @@ export default function PlanetObject(props: AstronomyObjectPropType) {
             setMessages={setGotoMessages}
           />
           {errors && <span className="text-danger">{errors}</span>}
+          {success && <span className="text-success">{success}</span>}
         </div>
       </div>
     </div>

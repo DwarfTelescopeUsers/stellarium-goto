@@ -1,0 +1,72 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:3000",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Dwarfium",
+    "version": "2.3.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": true
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.Dwarfium.build",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": "src-tauri/entitlements.mac.inherit.plist",
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {  
+      "csp": null,
+      "dangerousUseHttpScheme": true
+    },    
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://gist.githubusercontent.com/stevejcl/0957e6a73b3f8a8c804f80a41eefadf4/raw/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBMzlDNzU4QTM3N0IyODYKUldTR3NuZWpXTWM1V2xubEVvWVlsU051RFdQSjJDT2JwVXlWRlZvMDd0Mk1hMWtMRTdhbWJ6Yi8K"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 720,
+        "resizable": true,
+        "title": "Dwarfium",
+        "width": 900
+      }
+    ]
+  }
+}

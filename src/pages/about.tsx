@@ -1,87 +1,165 @@
 import Link from "next/link";
-import StatusBar from "@/components/shared/StatusBar";
-import { useSetupConnection } from "@/hooks/useSetupConnection";
-import { useLoadIntialValues } from "@/hooks/useLoadIntialValues";
+
+import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
+import i18n from "@/i18n";
 
 export default function About() {
-  useSetupConnection();
-  useLoadIntialValues();
+  const { t } = useTranslation();
+  // eslint-disable-next-line no-unused-vars
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
 
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setSelectedLanguage(storedLanguage);
+      i18n.changeLanguage(storedLanguage);
+    }
+  }, []);
   return (
     <div>
-      <StatusBar />
-      <h1>About</h1>
-      <p>
-        This website is a side project to combine my interest in coding,
-        astronomy and the Dwarf II API. To report bugs or view the code, vist
-        the{" "}
-        <Link href="https://github.com/DwarfTelescopeUsers/dwarfii-stellarium-goto">
-          Github repo.
-        </Link>
-      </p>
-
-      <h2>Data Credits</h2>
-      <p>The data for the objects lists comes from several sources.</p>
-      <ul>
-        <li>
-          The data about the DSO comes from{" "}
-          <Link href="https://github.com/mattiaverga/OpenNGC">
-            OpenNGC objects database
-          </Link>
-          .
-        </li>
-        <li>
-          Dr Michael Camilleri, Auckland Astronomical Society, New Zealand
-          provided object names and sizes for the DSO that are 15 arc minutes or
-          larger.
-        </li>
-        <li>
-          The data about the stars comes from{" "}
-          <Link href="https://github.com/astronexus/HYG-Database">
-            HYG Stellar database
-          </Link>
-          .
-        </li>
-        <li>
-          The data about the visual magnitude of planets and Moon comes from{" "}
-          <Link href="https://en.wikipedia.org/wiki/Apparent_magnitude">
-            Wikipedia.
-          </Link>
-        </li>
-        <li>
-          The constellation data comes from{" "}
-          <Link href="https://en.wikipedia.org/wiki/IAU_designated_constellations">
-            Wikipedia.
-          </Link>
-        </li>
-      </ul>
-      <p>
-        The{" "}
-        <Link href="https://github.com/DwarfTelescopeUsers/dwarfii-stellarium-goto/tree/main/notebooks">
-          Jupyter notebooks
-        </Link>{" "}
-        in the Github repo shows the steps I took transform the raw data into
-        the objects lists.
-      </p>
-
-      <p>
-        This site use code from{" "}
-        <Link href="https://github.com/commenthol/astronomia">Astronomia</Link>{" "}
-        and{" "}
-        <Link href="https://www.celestialprogramming.com">
-          celestialprogramming.com
-        </Link>{" "}
-        to do the astronomical calculations.
-      </p>
-
-      <h2>User Data</h2>
-      <p>
-        The info entered in by the users is stored in the browser&apos;s
-        database (localStorage). Since the data is stored in your browser, other
-        users of the site will not be able to access your data. This also means
-        if a user uses multiple browsers or devices, the data can not be synced
-        between the different browsers or devices.
-      </p>
+      <section className="daily-horp d-inline-block w-100">
+        <div className="container">
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <h2>
+            <u>{t("pAbout")}</u>
+          </h2>
+          <br />
+          <p>
+            {t("pAboutInfo")}{" "}
+            <Link
+              href="https://github.com/DwarfTelescopeUsers/dwarfii-stellarium-goto"
+              target="_blank"
+            >
+              Github repo.
+            </Link>
+          </p>
+          <br />
+          <h2>
+            <u>{t("pAboutDataCredit")}</u>
+          </h2>
+          <ul>
+            <li>{t("pAboutDataCreditInfo")}</li>
+            <li>
+              {t("pAboutDataCreditDSO")}{" "}
+              <Link
+                href="https://github.com/mattiaverga/OpenNGC"
+                target="_blank"
+              >
+                OpenNGC objects database
+              </Link>
+              .
+            </li>
+            <li>{t("pAboutDataCreditDSOAuth")}</li>
+            <li>
+              {t("pAboutDataCreditDSOStars")}{" "}
+              <Link
+                href="https://github.com/astronexus/HYG-Database"
+                target="_blank"
+              >
+                HYG Stellar database
+              </Link>
+              .
+            </li>
+            <li>
+              {t("pAboutDataCreditVisual")}{" "}
+              <Link
+                href="https://en.wikipedia.org/wiki/Apparent_magnitude"
+                target="_blank"
+              >
+                Wikipedia.
+              </Link>
+            </li>
+            <li>
+              {t("pAboutDataCreditConstellationData")}{" "}
+              <Link
+                href="https://en.wikipedia.org/wiki/IAU_designated_constellations"
+                target="_blank"
+              >
+                Wikipedia.
+              </Link>
+            </li>
+            <li>
+              {t("pAboutDataCreditJuypterThe")}{" "}
+              <Link
+                href="https://github.com/DwarfTelescopeUsers/dwarfii-stellarium-goto/tree/main/notebooks"
+                target="_blank"
+              >
+                Jupyter notebooks
+              </Link>{" "}
+              {t("pAboutDataCreditJuypterText")}
+            </li>
+            <li>
+              {t("pAboutDataCreditCode")}{" "}
+              <Link
+                href="https://github.com/commenthol/astronomia"
+                target="_blank"
+              >
+                Astronomia
+              </Link>{" "}
+              {t("pAboutDataCreditCodeAnd")}{" "}
+              <Link href="https://www.celestialprogramming.com" target="_blank">
+                celestialprogramming.com
+              </Link>{" "}
+              {t("pAboutDataCreditCodeAndText")}{" "}
+            </li>
+          </ul>
+          <br />
+          <h2>
+            <u>{t("pAboutUserData")}</u>
+          </h2>
+          <p>{t("pAboutUserDataDesc")}</p>
+          <br />
+          <h2>
+            <u>{t("pAboutAdditional")}</u>
+          </h2>
+          <p>
+            {t("pAboutAdditionalWeatherData")}{" "}
+            <Link href="https://openweathermap.org/" target="_blank">
+              OpenWeather
+            </Link>
+            .
+          </p>
+          <p>
+            {t("pAboutAdditionalRSSData")}{" "}
+            <Link
+              href="https://in-the-sky.org/rss.php?feed=deepsky"
+              target="_blank"
+            >
+              in-the-sky.org
+            </Link>
+            .
+          </p>
+          <p>
+            {t("pAboutAdditionalWitmotion")}{" "}
+            <Link
+              href="https://github.com/LiDline/witmotion_wt901blecl_ts"
+              target="_blank"
+            >
+              LiDLine Node integration
+            </Link>
+            .
+          </p>
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+        </div>{" "}
+      </section>
     </div>
   );
 }

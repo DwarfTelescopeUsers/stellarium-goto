@@ -1,30 +1,25 @@
-import { useContext, useState } from "react";
-import type { FormEvent } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
+import { useEffect, useContext, useState } from "react";
+import type { FormEvent, ChangeEvent } from "react";
 
-import {
-  wsURL,
-  statusTelephotoCmd,
-  statusWideangleCmd,
-  cameraSettings,
-  socketSend,
-} from "dwarfii_api";
+import CmdHostLockDwarf from "@/components/setup/CmdHostLockDwarf";
+
 import { ConnectionContext } from "@/stores/ConnectionContext";
-import {
-  saveConnectionStatusDB,
-  saveInitialConnectionTimeDB,
-  saveIPDwarfDB,
-} from "@/db/db_utils";
-import { logger } from "@/lib/logger";
+import { saveIPDwarfDB } from "@/db/db_utils";
+
+import { connectionHandler } from "@/lib/connect_utils";
 
 export default function ConnectDwarf() {
   let connectionCtx = useContext(ConnectionContext);
 
   const [connecting, setConnecting] = useState(false);
+  const [slavemode, setSlavemode] = useState(false);
+  const [goLive, setGoLive] = useState(false);
+  const [errorTxt, setErrorTxt] = useState("");
 
-  function checkConnection(e: FormEvent<HTMLFormElement>) {
+  async function checkConnection(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    setConnecting(true);
 
     const formData = new FormData(e.currentTarget);
     const formIP = formData.get("ip");
@@ -38,91 +33,89 @@ export default function ConnectDwarf() {
     connectionCtx.setIPDwarf(IPDwarf);
     saveIPDwarfDB(IPDwarf);
 
-    const socket = new WebSocket(wsURL(IPDwarf));
+    connectionHandler(
+      connectionCtx,
+      IPDwarf,
+      true,
+      setConnecting,
+      setSlavemode,
+      setGoLive,
+      setErrorTxt
+    );
+  }
 
-    socket.addEventListener("open", () => {
-      let options = cameraSettings();
-      logger("start cameraSettings...", options, connectionCtx);
-      socketSend(socket, options);
-    });
+  function ipHandler(e: ChangeEvent<HTMLInputElement>) {
+    let value = e.target.value.trim();
+    if (value === "") return;
 
-    // close socket is request takes too long
-    let closeSocketTimer = setTimeout(() => {
-      setConnecting(false);
-      connectionCtx.setConnectionStatus(false);
-      saveConnectionStatusDB(false);
-      socket.close();
-    }, 3000);
-
-    socket.addEventListener("message", (event) => {
-      clearTimeout(closeSocketTimer);
-      setConnecting(false);
-
-      let message = JSON.parse(event.data);
-      if (
-        message.interface === statusTelephotoCmd ||
-        message.interface === statusWideangleCmd
-      ) {
-        logger("cameraSettings:", message, connectionCtx);
-        connectionCtx.setConnectionStatus(true);
-        connectionCtx.setInitialConnectionTime(Date.now());
-        saveConnectionStatusDB(true);
-        saveInitialConnectionTimeDB();
-      } else {
-        logger("", message, connectionCtx);
-      }
-    });
-
-    socket.addEventListener("error", (error) => {
-      logger("cameraSettings error:", error, connectionCtx);
-      clearTimeout(closeSocketTimer);
-      setConnecting(false);
-      connectionCtx.setConnectionStatus(false);
-      saveConnectionStatusDB(false);
-    });
+    saveIPDwarfDB(value);
+    connectionCtx.setIPDwarf(value);
   }
 
   function renderConnectionStatus() {
+    let goLiveMessage = "";
+    if (goLive) {
+      goLiveMessage = "=> Go Live";
+    }
     if (connecting) {
-      return <span>Connecting...</span>;
+      return <span className="text-warning-connect">{t("pConnecting")}</span>;
     }
     if (connectionCtx.connectionStatus === undefined) {
       return <></>;
     }
     if (connectionCtx.connectionStatus === false) {
-      return <span className="text-danger">Connection failed.</span>;
+      return (
+        <span className="text-danger">
+          {t("pConnectingFailed")}
+          {errorTxt}.
+        </span>
+      );
+    }
+    if (connectionCtx.connectionStatusSlave || slavemode) {
+      return (
+        <span className="text-warning">
+          {t("pConnectionSuccessFull")} (Slave Mode) {goLiveMessage}
+          {errorTxt}.
+        </span>
+      );
     }
 
-    return <span className="text-success">Connection successful.</span>;
+    return (
+      <span className="text-success-connect">
+        {t("pConnectionSuccessFull")} {goLiveMessage}
+        {errorTxt}
+      </span>
+    );
   }
 
+  const renderCmdHostLockDwarf = () => {
+    // Your logic for rendering CmdHostLockDwarf
+    // Example:
+    return <CmdHostLockDwarf />;
+  };
+  const { t } = useTranslation();
+  // eslint-disable-next-line no-unused-vars
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setSelectedLanguage(storedLanguage);
+      i18n.changeLanguage(storedLanguage);
+    }
+  }, []);
   return (
     <div>
-      <h2>Connect to Dwarf II</h2>
+      <h2>{t("pConnectDwarfII")}Connect to Dwarf II</h2>
 
-      <p>
-        In order for this site to connect to the Dwarf II, both the Dwarf II and
-        the website must use the same wifi network.
-      </p>
+      <p>{t("pConnectDwarfIIContent")}</p>
 
       <ol>
-        <li className="mb-2">
-          Use the Dwarf II mobile app to connect to the telescope. You can use
-          the Dwarf wifi or set the Dwarf II to STA mode and use your normal
-          wifi network.
-        </li>
-        <li className="mb-2">
-          Visit this site on a device that is connected to the same wifi network
-          as the Dwarf II.
-        </li>
-        <li className="mb-2">
-          Enter in IP for the Dwarf II. If you are using Dwarf wifi, the IP is
-          192.168.88.1. If you are using STA mode, use the IP for your wifi
-          network.
-        </li>
-        <li className="mb-2">
-          Click Connect. This site will try to connect to Dwarf II.
-        </li>
+        <li className="mb-2">{t("pConnectDwarfIIContent1")}</li>
+        <li className="mb-2">{t("pConnectDwarfIIContent2")}</li>
+        <li className="mb-2">{t("pConnectDwarfIIContent3")}</li>
+        <li className="mb-2">{t("pConnectDwarfIIContent4")}</li>
+        <li className="mb-2">{t("pConnectDwarfIIContent5")}</li>
         <form onSubmit={checkConnection} className="mb-3">
           <div className="row mb-3">
             <div className="col-md-1">
@@ -130,22 +123,25 @@ export default function ConnectDwarf() {
                 IP
               </label>
             </div>
-            <div className="col-md-11">
+            <div className="col-lg-2 col-md-10">
               <input
                 className="form-control"
                 id="ip"
                 name="ip"
-                placeholder="127.00.00.00"
+                placeholder="127.0.0.1"
                 required
                 defaultValue={connectionCtx.IPDwarf}
+                onChange={(e) => ipHandler(e)}
               />
             </div>
           </div>
-          <button type="submit" className="btn btn-primary me-3">
-            Connect
+          <button type="submit" className="btn btn-more02 me-3">
+            <i className="icon-wifi" /> {t("pConnect")}
           </button>{" "}
           {renderConnectionStatus()}
+          {renderCmdHostLockDwarf()}
         </form>
+        <li className="mb-4">{t("pConnectDwarfIIContent6")}</li>
       </ol>
     </div>
   );
