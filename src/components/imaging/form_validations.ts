@@ -3,24 +3,35 @@ type FieldValues = number | "default" | undefined;
 type Fields = {
   gain: FieldValues | string;
   exposure: FieldValues | string;
+  wideGain: FieldValues | string;
+  wideExposure: FieldValues | string;
   IR: FieldValues;
   binning: FieldValues;
   fileFormat: FieldValues;
   count: FieldValues;
+  AiEnhance: FieldValues;
 };
 
 export function validateAstroSettings(values: Fields) {
   const errors: { [k: string]: string } = {};
-  ["gain", "exposure", "IR", "binning", "fileFormat", "count"].forEach(
-    (item) => {
-      if (
-        values[item as keyof Fields] === undefined ||
-        values[item as keyof Fields] === "default"
-      ) {
-        errors[item] = `${item} is required`;
-      }
+  [
+    "gain",
+    "exposure",
+    "wideGain",
+    "wideExposure",
+    "IR",
+    "binning",
+    "fileFormat",
+    "count",
+    "AiEnhance",
+  ].forEach((item) => {
+    if (
+      values[item as keyof Fields] === undefined ||
+      values[item as keyof Fields] === "default"
+    ) {
+      errors[item] = `${item} is required`;
     }
-  );
+  });
 
   return errors;
 }

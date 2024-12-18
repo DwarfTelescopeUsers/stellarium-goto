@@ -6,8 +6,8 @@ import { deleteLogMessagesDb, saveLoggerStatusDb } from "@/db/db_utils";
 import DebugMessageItem from "./LogMessageItem";
 
 export default function DebugMessages() {
-  useLoadIntialValues();
   let connectionCtx = useContext(ConnectionContext);
+  useLoadIntialValues();
   let [messages, setMessages] = useState(connectionCtx.logger);
 
   // React context cannot update state between different browser tabs.
@@ -51,8 +51,8 @@ export default function DebugMessages() {
       <h1>Message Log</h1>
       <p>
         If turn on the logger, this app will save and display all the messages
-        sent between this app and Dwarf II. The messages are ordered from oldest
-        to newest.
+        sent between this app and Dwarf device. The messages are ordered from
+        oldest to newest.
       </p>
       <div className="mb-3">
         Log status: {connectionCtx.loggerStatus ? "on" : "off"}

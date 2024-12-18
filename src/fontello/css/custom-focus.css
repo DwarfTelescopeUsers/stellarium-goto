@@ -1,0 +1,86 @@
+@font-face {
+  font-family: 'custom-focus';
+  src: url('../font/custom-focus.eot?72804297');
+  src: url('../font/custom-focus.eot?72804297#iefix') format('embedded-opentype'),
+       url('../font/custom-focus.woff2?72804297') format('woff2'),
+       url('../font/custom-focus.woff?72804297') format('woff'),
+       url('../font/custom-focus.ttf?72804297') format('truetype'),
+       url('../font/custom-focus.svg?72804297#custom-focus') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+/* Chrome hack: SVG is rendered more smooth in Windozze. 100% magic, uncomment if you need it. */
+/* Note, that will break hinting! In other OS-es font will be not as sharp as it could be */
+/*
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+  @font-face {
+    font-family: 'custom-focus';
+    src: url('../font/custom-focus.svg?72804297#custom-focus') format('svg');
+  }
+}
+*/
+[class^="icon-"]:before, [class*=" icon-"]:before {
+  font-family: "custom-focus";
+  font-style: normal;
+  font-weight: normal;
+  speak: never;
+
+  display: inline-block;
+  text-decoration: inherit;
+  width: 1em;
+  margin-right: .2em;
+  text-align: center;
+  /* opacity: .8; */
+
+  /* For safety - reset parent styles, that can break glyph codes*/
+  font-variant: normal;
+  text-transform: none;
+
+  /* fix buttons height, for twitter bootstrap */
+  line-height: 1em;
+
+  /* Animation center compensation - margins should be symmetric */
+  /* remove if not needed */
+  margin-left: .2em;
+
+  /* you can be more comfortable with increased icons size */
+  /* font-size: 120%; */
+
+  /* Font smoothing. That was taken from TWBS */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Uncomment for 3D effect */
+  /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */
+}
+
+.icon-drive:before { content: '\e800'; } /* '' */
+.icon-camera-alt:before { content: '\e801'; } /* '' */
+.icon-gauge:before { content: '\e802'; } /* '' */
+.icon-adjust:before { content: '\e803'; } /* '' */
+.icon-picture-outline:before { content: '\e804'; } /* '' */
+.icon-picture:before { content: '\e805'; } /* '' */
+.icon-location:before { content: '\e806'; } /* '' */
+.icon-micro-sd:before { content: '\e807'; } /* '' */
+.icon-sd-card-black:before { content: '\e808'; } /* '' */
+.icon-star-empty:before { content: '\e809'; } /* '' */
+.icon-counter-4:before { content: '\e80a'; } /* '' */
+.icon-location-1:before { content: '\e80b'; } /* '' */
+.icon-connected-object:before { content: '\f035'; } /* '' */
+.icon-hdd:before { content: '\f0a0'; } /* '' */
+.icon-filter:before { content: '\f0b0'; } /* '' */
+.icon-plus-squared:before { content: '\f0fe'; } /* '' */
+.icon-bullseye:before { content: '\f140'; } /* '' */
+.icon-minus-squared:before { content: '\f146'; } /* '' */
+.icon-minus-squared-alt:before { content: '\f147'; } /* '' */
+.icon-plus-squared-alt:before { content: '\f196'; } /* '' */
+.icon-wifi:before { content: '\f1eb'; } /* '' */
+.icon-chart-area:before { content: '\f1fe'; } /* '' */
+.icon-connectdevelop:before { content: '\f20e'; } /* '' */
+.icon-battery-4:before { content: '\f240'; } /* '' */
+.icon-battery-3:before { content: '\f241'; } /* '' */
+.icon-battery-2:before { content: '\f242'; } /* '' */
+.icon-battery-1:before { content: '\f243'; } /* '' */
+.icon-battery-0:before { content: '\f244'; } /* '' */
+.icon-usb:before { content: '\f287'; } /* '' */
+.icon-bluetooth:before { content: '\f293'; } /* '' */

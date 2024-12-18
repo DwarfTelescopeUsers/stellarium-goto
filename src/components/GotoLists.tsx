@@ -1,5 +1,8 @@
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 import DSOList from "@/components/astroObjects/DSOList";
 import PlanetsList from "@/components/astroObjects/PlanetsList";
@@ -8,9 +11,33 @@ import { processObjectListOpenNGC } from "@/lib/observation_lists_utils";
 import { ConnectionContext } from "@/stores/ConnectionContext";
 import { saveCurrentObjectListNameDb } from "@/db/db_utils";
 
-export default function AutoGoto() {
+let dsoObject = processObjectListOpenNGC(dsoCatalog);
+console.info("DSO processObjectListOpenNGC");
+
+type PropType = {
+  objectFavoriteNames: string[];
+  setObjectFavoriteNames: Dispatch<SetStateAction<string[]>>;
+  setModule: Dispatch<SetStateAction<string | undefined>>;
+  setErrors: Dispatch<SetStateAction<string | undefined>>;
+  setSuccess: Dispatch<SetStateAction<string | undefined>>;
+};
+
+export default function AutoGoto(props: PropType) {
+  const { objectFavoriteNames, setObjectFavoriteNames } = props;
+  const { setModule, setErrors, setSuccess } = props;
+  const { t } = useTranslation();
+  // eslint-disable-next-line no-unused-vars
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setSelectedLanguage(storedLanguage);
+      i18n.changeLanguage(storedLanguage);
+    }
+  }, []);
+
   let connectionCtx = useContext(ConnectionContext);
-  let dsoObject = processObjectListOpenNGC(dsoCatalog);
 
   function selectListHandler(e: ChangeEvent<HTMLSelectElement>) {
     connectionCtx.setCurrentObjectListName(e.target.value);
@@ -23,66 +50,77 @@ export default function AutoGoto() {
 
   return (
     <div>
-      {!connectionCtx.connectionStatusStellarium && (
-        <p className="text-danger">
-          You must connect to Stellarium for Center to work.
-        </p>
-      )}
-      {!connectionCtx.connectionStatus && (
-        <p className="text-danger">
-          You must connect to Dwarf II for Goto to work.
-        </p>
-      )}
-
-      <select
-        className="form-select"
-        value={connectionCtx.currentObjectListName || "default"}
-        onChange={selectListHandler}
-      >
-        <option value="default">Select object lists</option>
-        <option value="dso">DSO</option>
-        <option value="planets">Planets and Moon</option>
-      </select>
-      {showInstructions && (
-        <>
-          <p className="mt-4">Please select an objects list.</p>
-
-          <ol>
-            <li>
-              The DSO list has objects that are:
-              <ul>
-                <li>
-                  Large (&gt; 15 arcminutes) and relatively bright (under 10
-                  magnitude). 116 objects.
-                </li>
-                <li>
-                  Large (&gt; 15 arcminutes) and unknown brightness. 83 objects.
-                </li>
-                <li>
-                  Small (&lt; 15 arcminutes), relatively bright (under 10
-                  magnitude), with common names. 29 objects.
-                </li>
-                <li>50 of the brightest stars with common names.</li>
-              </ul>
-            </li>
-            <li>
-              The Planets and Moon list has the planets in our solar system and
-              the Moon. Be aware, Dwarf II is not good for taking images of the
-              planets.
-            </li>
-          </ol>
-          <p>
-            &quot;Center&quot; will show the selected object in Stellarium.
-            &quot;Goto&quot; will move Dwarf II to the selected object.
+      <div className="container">
+        {!connectionCtx.connectionStatusStellarium && (
+          <p className="text-danger">{t("cGoToListConnectStellarium")}</p>
+        )}
+        {!connectionCtx.connectionStatus && (
+          <p className="text-danger">
+            {t("cGoToListConnectDwarf", {
+              DwarfType: connectionCtx.typeNameDwarf,
+            })}
           </p>
-        </>
-      )}
-      {connectionCtx.currentObjectListName === "dso" && (
-        <DSOList objects={dsoObject}></DSOList>
-      )}
-      {connectionCtx.currentObjectListName === "planets" && (
-        <PlanetsList></PlanetsList>
-      )}
+        )}
+
+        <select
+          className="form-select-dso"
+          value={connectionCtx.currentObjectListName || "default"}
+          onChange={selectListHandler}
+        >
+          <option value="default">{t("cGoToListdefault")}</option>
+          <option value="dso">DSO</option>
+          <option value="planets">{t("cGotoListplanets")}</option>
+        </select>
+        {showInstructions && (
+          <>
+            <p className="mt-4">{t("cGotoListSelectObject")}</p>
+
+            <ol>
+              <li>
+                {t("cGotoListDSOList")}
+                <ul>
+                  <li>{t("cGotoListDSOList1")}</li>
+                  <li>{t("cGotoListDSOList2")}</li>
+                  <li>{t("cGotoListDSOList3")}</li>
+                  <li>{t("cGotoListDSOList4")}</li>
+                </ul>
+              </li>
+              <li>
+                {t("cGotoListDSOList5", {
+                  DwarfType: connectionCtx.typeNameDwarf,
+                })}
+              </li>
+            </ol>
+            <p>
+              {t("cGotoListinfo", { DwarfType: connectionCtx.typeNameDwarf })}
+            </p>
+            {""}
+            <br />
+            <br />
+            <br />
+            <br />
+            <br />
+            <br />
+          </>
+        )}
+        {connectionCtx.currentObjectListName === "dso" && (
+          <DSOList
+            objects={dsoObject}
+            objectFavoriteNames={objectFavoriteNames}
+            setObjectFavoriteNames={setObjectFavoriteNames}
+            setModule={setModule}
+            setErrors={setErrors}
+            setSuccess={setSuccess}
+          ></DSOList>
+        )}
+        {connectionCtx.currentObjectListName === "planets" && (
+          <PlanetsList
+            setModule={setModule}
+            setErrors={setErrors}
+            setSuccess={setSuccess}
+          ></PlanetsList>
+        )}
+      </div>
     </div>
   );
 }
