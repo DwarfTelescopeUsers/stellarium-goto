@@ -8,14 +8,22 @@ import {
   fetchPortStellariumDB,
   fetchUrlStellariumDB,
   fetchConnectionStatusStellariumDB,
+  fetchProxyIPDB,
+  fetchProxyLocalIPDB,
   fetchIPDwarfDB,
+  fetchBlePWDDwarfDB,
+  fetchBleSTASSIDDwarfDB,
+  fetchBleSTAPWDDwarfDB,
   fetchUserCurrentObjectListNameDb,
   fetchCurrentObjectListNameDb,
   fetchConnectionStatusDB,
   fetchAstroSettingsDb,
   fetchLoggerStatusDb,
+  fetchLoggerViewDb,
+  fetchPiPViewDb,
   fetchLogMessagesDb,
   fetchImagingSessionDb,
+  fetchTimezoneDB,
 } from "@/db/db_utils";
 
 export function useLoadIntialValues() {
@@ -37,13 +45,45 @@ export function useLoadIntialValues() {
         connectionCtx.setLongitude(data.longitude);
       }
     }
+    if (connectionCtx.timezone === undefined || connectionCtx.timezone == "?") {
+      let data = fetchTimezoneDB();
+
+      if (data == "" || data == "?")
+        data = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      if (data) {
+        connectionCtx.setTimezone(data);
+      }
+    }
     if (connectionCtx.initialConnectionTime === undefined) {
       let data = fetchInitialConnectionTimeDB();
       if (data !== undefined) connectionCtx.setInitialConnectionTime(data);
     }
+    if (connectionCtx.proxyIP === undefined) {
+      let data = fetchProxyIPDB();
+      if (data !== undefined) connectionCtx.setProxyIP(data);
+      else connectionCtx.setProxyIP(undefined);
+    }
+    if (connectionCtx.proxyLocalIP === undefined) {
+      let data = fetchProxyLocalIPDB();
+      if (data !== undefined) connectionCtx.setProxyLocalIP(data);
+      else connectionCtx.setProxyLocalIP(undefined);
+    }
     if (connectionCtx.IPDwarf === undefined) {
       let data = fetchIPDwarfDB();
       if (data !== undefined) connectionCtx.setIPDwarf(data);
+    }
+    if (connectionCtx.BlePWDDwarf === undefined) {
+      let data = fetchBlePWDDwarfDB();
+      if (data !== undefined) connectionCtx.setBlePWDDwarf(data);
+    }
+    if (connectionCtx.BleSTASSIDDwarf === undefined) {
+      let data = fetchBleSTASSIDDwarfDB();
+      if (data !== undefined) connectionCtx.setBleSTASSIDDwarf(data);
+    }
+    if (connectionCtx.BleSTAPWDDwarf === undefined) {
+      let data = fetchBleSTAPWDDwarfDB();
+      if (data !== undefined) connectionCtx.setBleSTAPWDDwarf(data);
     }
     if (connectionCtx.connectionStatusStellarium === undefined) {
       let data = fetchConnectionStatusStellariumDB();
@@ -62,11 +102,29 @@ export function useLoadIntialValues() {
       if (data !== undefined) connectionCtx.setUrlStellarium(data);
     }
 
+    if (connectionCtx.searchTxt === undefined) {
+      connectionCtx.setSearchTxt("Search");
+    }
+
+    if (connectionCtx.visibleSkyLimit === undefined) {
+      connectionCtx.setVisibleSkyLimit("W");
+    }
+
+    if (connectionCtx.savePositionStatus === undefined) {
+      connectionCtx.setSavePositionStatus(false);
+    }
+    if (connectionCtx.isSavedPosition === undefined) {
+      connectionCtx.setIsSavedPosition(false);
+    }
     if (connectionCtx.currentObjectListName === undefined) {
       let data = fetchCurrentObjectListNameDb();
       if (data !== undefined) {
         connectionCtx.setCurrentObjectListName(data);
       }
+    }
+
+    if (connectionCtx.gotoType === undefined) {
+      connectionCtx.setGotoType("lists");
     }
 
     if (connectionCtx.currentUserObjectListName === undefined) {
@@ -95,6 +153,16 @@ export function useLoadIntialValues() {
       if (data !== undefined) {
         connectionCtx.setLoggerStatus(data);
       }
+    }
+
+    let data = fetchLoggerViewDb();
+    if (data !== undefined) {
+      connectionCtx.setLoggerView(data);
+    }
+
+    let dataPiP = fetchPiPViewDb();
+    if (dataPiP !== undefined) {
+      connectionCtx.setPiPView(dataPiP);
     }
 
     if (connectionCtx.logger === undefined) {

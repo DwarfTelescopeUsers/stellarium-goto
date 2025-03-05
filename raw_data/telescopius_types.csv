@@ -1,13 +1,14 @@
-Type,category
-Asteroid,asteroids
-Bright nebula,nebulae
-Comet,comet
-Dark nebula,nebulae
-Diffuse nebula,nebulae
-Diffuse nebula,nebulae
-Galaxy,galaxies
-Galaxy cluster,galaxies
-Globular cluster,clusters
-Open cluster,clusters
-Planetary nebula,nebulae
-Supernova remnant,nebulae
+Type;category
+Asteroid;asteroids
+Bright nebula;nebulae
+Comet;comet
+Dark nebula;nebulae
+Diffuse nebula;nebulae
+Diffuse nebula;nebulae
+Galaxy;galaxies
+Galaxy cluster;galaxies
+Globular cluster;clusters
+Open cluster;clusters
+Planetary nebula;nebulae
+Supernova remnant;nebulae
+Mosaic;mosaic

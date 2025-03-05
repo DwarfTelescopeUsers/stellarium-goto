@@ -1,5 +1,5 @@
+import { useContext, useState, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { useContext, useState } from "react";
 import OverlayTrigger from "react-bootstrap/OverlayTrigger";
 import Popover from "react-bootstrap/Popover";
 import Tooltip from "react-bootstrap/Tooltip";
@@ -7,36 +7,118 @@ import Link from "next/link";
 
 import { ConnectionContext } from "@/stores/ConnectionContext";
 import {
-  wsURL,
-  takeAstroPhoto,
-  takeAstroPhotoCmd,
-  socketSend,
-  stopAstroPhoto,
-  stopAstroPhotoCmd,
-  numberRawImagesCmd,
-  telephotoCamera,
+  Dwarfii_Api,
+  messageAstroStartCaptureRawLiveStacking,
+  messageAstroStopCaptureRawLiveStacking,
+  messageAstroStartWideCaptureLiveStacking,
+  messageAstroStopWideCaptureLiveStacking,
+  messageAstroGoLive,
+  messageFocusStartAstroAutoFocus,
+  messageFocusStopAstroAutoFocus,
+  messageFocusManualSingleStepFocus,
+  messageFocusStartManualContinuFocus,
+  messageFocusStopManualContinuFocus,
+  WebSocketHandler,
 } from "dwarfii_api";
 import ImagingAstroSettings from "@/components/imaging/ImagingAstroSettings";
 import RecordingButton from "@/components/icons/RecordingButton";
 import RecordButton from "@/components/icons/RecordButton";
-import { logger } from "@/lib/logger";
 import { validateAstroSettings } from "@/components/imaging/form_validations";
 import { ImagingSession } from "@/types";
 import { saveImagingSessionDb, removeImagingSessionDb } from "@/db/db_utils";
+import CameraAddOn from "@/components/imaging/CameraAddOn";
 import {
-  turnOnCameraFn,
+  wideangleCamera,
+  turnOnTeleCameraFn,
+  turnOnWideCameraFn,
   calculateSessionTime,
   updateTelescopeISPSetting,
 } from "@/lib/dwarf_utils";
 import styles from "@/components/imaging/ImagingMenu.module.css";
 
 type PropType = {
+  exchangeCamerasStatus: boolean;
   setShowWideangle: Dispatch<SetStateAction<boolean>>;
+  setUseRawPreviewURL: Dispatch<SetStateAction<boolean>>;
 };
 
 export default function ImagingMenu(props: PropType) {
-  const { setShowWideangle } = props;
+  const { exchangeCamerasStatus, setShowWideangle, setUseRawPreviewURL } =
+    props;
   let connectionCtx = useContext(ConnectionContext);
+  const [showWideAngle, setShowWideAngle] = useState(false);
+  const [astroFocus, setAstroFocus] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [validSettings, setValidSettings] = useState(isValid());
+  const [showModal, setShowModal] = useState(false);
+
+  let timerSession: ReturnType<typeof setInterval>;
+  let timerSessionInit: boolean = connectionCtx.timerGlobal !== undefined;
+
+  useEffect(() => {
+    let testTimer: string | any = "";
+    if (connectionCtx.timerGlobal)
+      testTimer = connectionCtx.timerGlobal.toString();
+    console.debug(" TG --- Global Timer:", testTimer, connectionCtx);
+    if (connectionCtx.imagingSession.isRecording)
+      console.debug("TG isRecording True:", testTimer, connectionCtx);
+    else console.debug("TG isRecording False:", testTimer, connectionCtx);
+    if (connectionCtx.imagingSession.endRecording)
+      console.debug("TG endRecording True:", testTimer, connectionCtx);
+    else console.debug("TG endRecording False:", testTimer, connectionCtx);
+  }, [connectionCtx.timerGlobal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let testTimer: string | any = "";
+    if (connectionCtx.timerGlobal)
+      testTimer = connectionCtx.timerGlobal.toString();
+    if (connectionCtx.imagingSession.isRecording) {
+      console.debug("setIsRecording True:", testTimer, connectionCtx);
+      if (!timerSessionInit) {
+        timerSession = startTimer();
+        if (timerSession) {
+          timerSessionInit = true;
+          testTimer = timerSession.toString();
+          console.debug("startTimer timer:", testTimer, connectionCtx);
+          connectionCtx.setTimerGlobal(timerSession);
+        } else timerSessionInit = false;
+      }
+    } else console.debug("setIsRecording False:", testTimer, connectionCtx);
+  }, [connectionCtx.imagingSession.isRecording]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let testTimer: string | any = "";
+    if (connectionCtx.timerGlobal)
+      testTimer = connectionCtx.timerGlobal.toString();
+    if (connectionCtx.imagingSession.endRecording)
+      console.debug("endRecording True:", testTimer, connectionCtx);
+    else console.debug("endRecording false:", testTimer, connectionCtx);
+  }, [connectionCtx.imagingSession.endRecording]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let testTimer: string | any = "";
+    if (connectionCtx.timerGlobal)
+      testTimer = connectionCtx.timerGlobal.toString();
+    if (connectionCtx.imagingSession.isStackedCountStart)
+      console.debug("isStackedCountStart True:", testTimer, connectionCtx);
+    else console.debug("isStackedCountStart false:", testTimer, connectionCtx);
+  }, [connectionCtx.imagingSession.isStackedCountStart]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let testTimer: string | any = "";
+    if (connectionCtx.timerGlobal)
+      testTimer = connectionCtx.timerGlobal.toString();
+    else if (timerSession) testTimer = timerSession.toString();
+    if (connectionCtx.imagingSession.isGoLive) {
+      console.debug("isGoLive True:", testTimer, connectionCtx);
+      stopTimer();
+    } else console.debug("isGoLive false:", testTimer, connectionCtx);
+    return () => {
+      if (connectionCtx.imagingSession.isGoLive) {
+        stopTimer();
+      }
+    };
+  }, [connectionCtx.imagingSession.isGoLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function isValid() {
     let errors = validateAstroSettings(connectionCtx.astroSettings as any);
@@ -46,10 +128,29 @@ export default function ImagingMenu(props: PropType) {
     );
   }
 
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [validSettings, setValidSettings] = useState(isValid());
-  const [isRecording, setIsRecording] = useState(false);
-  const [sessionTimer, setSessionTimer] = useState<any>();
+  function timerFunction() {
+    if (!connectionCtx.imagingSession.isGoLive) {
+      let time = calculateSessionTime(connectionCtx);
+      if (time) {
+        connectionCtx.setImagingSession((prev) => {
+          prev["sessionElaspsedTime"] = time as string;
+          return { ...prev };
+        });
+        saveImagingSessionDb("sessionElaspsedTime", time.toString());
+      }
+    } else {
+      stopTimer();
+    }
+  }
+
+  function startTimer() {
+    let timer: string | any = "";
+    if (!connectionCtx.timerGlobal) {
+      timer = setInterval(timerFunction, 500);
+    } else timer = connectionCtx.timerGlobal;
+
+    return timer;
+  }
 
   function takeAstroPhotoHandler() {
     if (connectionCtx.IPDwarf == undefined) {
@@ -59,71 +160,123 @@ export default function ImagingMenu(props: PropType) {
       return;
     }
 
-    if (!sessionTimer) {
-      let timer = setInterval(() => {
-        let time = calculateSessionTime(connectionCtx);
-        if (time) {
-          connectionCtx.setImagingSession((prev) => {
-            prev["sessionElaspsedTime"] = time as string;
-            return { ...prev };
-          });
-        }
-      }, 2000);
-      setSessionTimer(timer);
+    let testTimer: string | any = "";
+    if (!timerSessionInit) {
+      timerSession = startTimer();
+      if (timerSession) {
+        timerSessionInit = true;
+        testTimer = timerSession.toString();
+        console.debug("startTimer timer:", testTimer, connectionCtx);
+        connectionCtx.setTimerGlobal(timerSession);
+      } else timerSessionInit = false;
     }
 
-    let now = Date.now();
-    connectionCtx.setImagingSession((prev) => {
-      prev.startTime = now;
-      return { ...prev };
-    });
-    setIsRecording(true);
-    saveImagingSessionDb("startTime", now.toString());
+    if (timerSessionInit && timerSession) {
+      testTimer = timerSession.toString();
+      console.debug("startImagingSession timer:", testTimer, connectionCtx);
 
-    const socket = new WebSocket(wsURL(connectionCtx.IPDwarf));
-
-    socket.addEventListener("open", () => {
-      let payload = takeAstroPhoto(
-        connectionCtx.astroSettings.rightAcension as string,
-        connectionCtx.astroSettings.declination as string,
-        connectionCtx.astroSettings.exposure as number,
-        connectionCtx.astroSettings.gain as number,
-        connectionCtx.astroSettings.binning as number,
-        connectionCtx.astroSettings.count as number,
-        connectionCtx.astroSettings.fileFormat as number
+      let now = Date.now();
+      connectionCtx.setImagingSession((prev) => {
+        prev["startTime"] = now;
+        return { ...prev };
+      });
+      connectionCtx.setImagingSession((prev) => {
+        prev["isRecording"] = true;
+        return { ...prev };
+      });
+      connectionCtx.setImagingSession((prev) => {
+        prev["endRecording"] = false;
+        return { ...prev };
+      });
+      connectionCtx.setImagingSession((prev) => {
+        prev["isStackedCountStart"] = false;
+        return { ...prev };
+      });
+      connectionCtx.setImagingSession((prev) => {
+        prev["astroCamera"] = connectionCtx.currentAstroCamera;
+        return { ...prev };
+      });
+      saveImagingSessionDb("isRecording", true.toString());
+      saveImagingSessionDb("endRecording", false.toString());
+      saveImagingSessionDb("isStackedCountStart", false.toString());
+      saveImagingSessionDb("startTime", now.toString());
+      saveImagingSessionDb(
+        "astroCamera",
+        connectionCtx.currentAstroCamera.toString()
       );
-      logger("start takeAstroPhoto...", payload, connectionCtx);
 
-      socketSend(socket, payload);
-    });
+      //startAstroPhotoHandler
 
-    socket.addEventListener("message", (event) => {
-      let message = JSON.parse(event.data);
-      if (message.interface === takeAstroPhotoCmd) {
-        logger("takeAstroPhoto:", message, connectionCtx);
+      console.debug(
+        "startAstroPhotoHandler current ST:",
+        testTimer,
+        connectionCtx
+      );
+      connectionCtx.setImagingSession((prev) => {
+        prev["imagesTaken"] = 0;
+        return { ...prev };
+      });
+      connectionCtx.setImagingSession((prev) => {
+        prev["imagesStacked"] = 0;
+        return { ...prev };
+      });
 
-        // update image count
-      } else if (message.interface === numberRawImagesCmd) {
-        // BUG: dwarf does not return message for every image taken
-        logger("takeAstroPhoto count:", message, connectionCtx);
-        connectionCtx.setImagingSession((prev) => {
-          prev["imagesTaken"] = message.currentCount;
-          return { ...prev };
-        });
-        saveImagingSessionDb("imagesTaken", message.currentCount.toString());
-
-        // update UI once imaging session is done imaging
-        if (message.currentCount === connectionCtx.astroSettings.count) {
-          endImagingSession();
+      const customMessageHandler = (txt_info, result_data) => {
+        // CMD_ASTRO_START_CAPTURE_RAW_LIVE_STACKING -> Start Capture
+        // CMD_ASTRO_START_CAPTURE_WIDE_RAW_LIVE_STACKING -> Start Capture Wide angle
+        if (
+          result_data.cmd ==
+            Dwarfii_Api.DwarfCMD.CMD_ASTRO_START_CAPTURE_RAW_LIVE_STACKING ||
+          result_data.cmd ==
+            Dwarfii_Api.DwarfCMD.CMD_ASTRO_START_CAPTURE_WIDE_RAW_LIVE_STACKING
+        ) {
+          if (
+            result_data.data.code ==
+            Dwarfii_Api.DwarfErrorCode.CODE_ASTRO_NEED_GOTO
+          ) {
+            console.error("Capture Need Goto");
+            console.debug("Capture Need Goto ", {}, connectionCtx);
+            return false;
+          } else if (result_data.data.code != Dwarfii_Api.DwarfErrorCode.OK) {
+            console.error("Capture error:", result_data.data.code);
+            console.debug("Start Capture error", {}, connectionCtx);
+            endImagingSession();
+            return false;
+          } else {
+            console.debug("Start Capture ok", {}, connectionCtx);
+          }
+        } else {
+          console.debug("", result_data, connectionCtx);
         }
-      } else {
-        logger("", message, connectionCtx);
-      }
-    });
+        console.debug(txt_info, result_data, connectionCtx);
+      };
 
-    socket.addEventListener("error", (err) => {
-      logger("takeAstroPhoto error:", err, connectionCtx);
-    });
+      console.log("socketIPDwarf: ", connectionCtx.socketIPDwarf); // Create WebSocketHandler if need
+      const webSocketHandler = connectionCtx.socketIPDwarf
+        ? connectionCtx.socketIPDwarf
+        : new WebSocketHandler(connectionCtx.IPDwarf);
+
+      // Send Command : messageAstroStartCaptureRawLiveStacking or messageAstroStartWideCaptureLiveStacking
+      let WS_Packet;
+      if (connectionCtx.currentAstroCamera != wideangleCamera)
+        WS_Packet = messageAstroStartCaptureRawLiveStacking();
+      else WS_Packet = messageAstroStartWideCaptureLiveStacking();
+      let txtInfoCommand = "takeAstroPhoto";
+
+      webSocketHandler.prepare(
+        WS_Packet,
+        txtInfoCommand,
+        [
+          Dwarfii_Api.DwarfCMD.CMD_ASTRO_START_CAPTURE_RAW_LIVE_STACKING,
+          Dwarfii_Api.DwarfCMD.CMD_ASTRO_START_CAPTURE_WIDE_RAW_LIVE_STACKING,
+        ],
+        customMessageHandler
+      );
+
+      if (!webSocketHandler.run()) {
+        console.error(" Can't launch Web Socket Run Action!");
+      }
+    }
   }
 
   function stopAstroPhotoHandler() {
@@ -131,92 +284,393 @@ export default function ImagingMenu(props: PropType) {
       return;
     }
 
-    endImagingSession();
-
-    let socket = new WebSocket(wsURL(connectionCtx.IPDwarf));
-    socket.addEventListener("open", () => {
-      // BUG: 10015 stop RAW images does not work. Camera continues taking
-      // photos.
-      let payload = stopAstroPhoto();
-      logger("begin stopAstroPhoto...", payload, connectionCtx);
-      socketSend(socket, payload);
-    });
-
-    socket.addEventListener("message", (event) => {
-      // BUG: dwarf does not return message for stopAstroPhoto
-      let message = JSON.parse(event.data);
-      if (message.interface === stopAstroPhotoCmd) {
-        logger("stopAstroPhoto", message, connectionCtx);
+    const customMessageHandler = (txt_info, result_data) => {
+      // CMD_ASTRO_STOP_CAPTURE_RAW_LIVE_STACKING -> Stop Capture
+      // CMD_ASTRO_STOP_WIDE_CAPTURE_LIVE_STACKING -> Stop Capture Wide angle
+      if (
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_ASTRO_STOP_CAPTURE_RAW_LIVE_STACKING ||
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_ASTRO_STOP_WIDE_CAPTURE_LIVE_STACKING
+      ) {
+        if (result_data.data.code != Dwarfii_Api.DwarfErrorCode.OK) {
+          console.debug("Stop Capture error", {}, connectionCtx);
+        } else {
+          console.debug("Stop Capture ok", {}, connectionCtx);
+        }
+        endImagingSession();
       } else {
-        logger("", message, connectionCtx);
+        console.debug("", result_data, connectionCtx);
       }
-    });
+      console.debug(txt_info, result_data, connectionCtx);
+    };
 
-    socket.addEventListener("error", (error) => {
-      logger("stopAstroPhoto error:", error, connectionCtx);
-    });
+    console.log("socketIPDwarf: ", connectionCtx.socketIPDwarf); // Create WebSocketHandler if need
+    const webSocketHandler = connectionCtx.socketIPDwarf
+      ? connectionCtx.socketIPDwarf
+      : new WebSocketHandler(connectionCtx.IPDwarf);
+
+    // Send Command : messageAstroStopCaptureRawLiveStacking or messageAstroStopWideCaptureLiveStacking
+    let WS_Packet;
+    if (connectionCtx.currentAstroCamera != wideangleCamera)
+      WS_Packet = messageAstroStopCaptureRawLiveStacking();
+    else WS_Packet = messageAstroStopWideCaptureLiveStacking();
+    let txtInfoCommand = "stopAstroPhoto";
+
+    webSocketHandler.prepare(
+      WS_Packet,
+      txtInfoCommand,
+      [
+        Dwarfii_Api.DwarfCMD.CMD_ASTRO_STOP_CAPTURE_RAW_LIVE_STACKING,
+        Dwarfii_Api.DwarfCMD.CMD_ASTRO_STOP_WIDE_CAPTURE_LIVE_STACKING,
+      ],
+      customMessageHandler
+    );
+
+    if (!webSocketHandler.run()) {
+      console.error(" Can't launch Web Socket Run Action!");
+    }
+  }
+
+  function goLiveHandler() {
+    if (connectionCtx.IPDwarf === undefined) {
+      return;
+    }
+
+    const customMessageHandler = (txt_info, result_data) => {
+      //
+      // -> Stop Capture
+      if (result_data.cmd == Dwarfii_Api.DwarfCMD.CMD_ASTRO_GO_LIVE) {
+        if (result_data.data.code != Dwarfii_Api.DwarfErrorCode.OK) {
+          console.debug("Go Live error", {}, connectionCtx);
+        } else {
+          console.debug("Go Live ok", {}, connectionCtx);
+        }
+        endPreview();
+      } else {
+        console.debug("", result_data, connectionCtx);
+      }
+      console.debug(txt_info, result_data, connectionCtx);
+    };
+
+    console.log("socketIPDwarf: ", connectionCtx.socketIPDwarf); // Create WebSocketHandler if need
+    const webSocketHandler = connectionCtx.socketIPDwarf
+      ? connectionCtx.socketIPDwarf
+      : new WebSocketHandler(connectionCtx.IPDwarf);
+
+    // Send Command : messageAstroGoLive
+    let WS_Packet = messageAstroGoLive();
+    let txtInfoCommand = "goLive";
+
+    webSocketHandler.prepare(
+      WS_Packet,
+      txtInfoCommand,
+      [Dwarfii_Api.DwarfCMD.CMD_ASTRO_GO_LIVE],
+      customMessageHandler
+    );
+
+    if (!webSocketHandler.run()) {
+      console.error(" Can't launch Web Socket Run Action!");
+    }
+  }
+
+  function stopTimer() {
+    let testTimer: string | any = "";
+    if (timerSession) {
+      testTimer = timerSession.toString();
+      console.debug(
+        "ImagingSession tS clearInterval:",
+        testTimer,
+        connectionCtx
+      );
+    }
+
+    // use connectionContext
+    if (connectionCtx.timerGlobal) {
+      testTimer = connectionCtx.timerGlobal.toString();
+      console.debug(
+        "ImagingSession tG clearInterval:",
+        testTimer,
+        connectionCtx
+      );
+    }
+    if (connectionCtx.timerGlobal) clearInterval(connectionCtx.timerGlobal);
+    connectionCtx.setTimerGlobal(undefined);
+
+    if (timerSession) clearInterval(timerSession);
+
+    timerSessionInit = false;
+  }
+
+  function endImagingSession() {
+    stopTimer();
+    if (connectionCtx.imagingSession.isRecording) {
+      connectionCtx.setImagingSession((prev) => {
+        prev["isRecording"] = false;
+        return { ...prev };
+      });
+      saveImagingSessionDb("isRecording", false.toString());
+    }
+    if (!connectionCtx.imagingSession.endRecording) {
+      connectionCtx.setImagingSession((prev) => {
+        prev["endRecording"] = true;
+        return { ...prev };
+      });
+      saveImagingSessionDb("endRecording", true.toString());
+    }
   }
 
   function endPreview() {
+    saveImagingSessionDb("endRecording", false.toString());
+    if (connectionCtx.imagingSession.endRecording) {
+      connectionCtx.setImagingSession((prev) => {
+        prev["endRecording"] = false;
+        return { ...prev };
+      });
+    }
+    saveImagingSessionDb("isGoLive", false.toString());
+    if (connectionCtx.imagingSession.isGoLive) {
+      connectionCtx.setImagingSession((prev) => {
+        prev["isGoLive"] = false;
+        return { ...prev };
+      });
+    }
     connectionCtx.setImagingSession({} as ImagingSession);
     removeImagingSessionDb();
+    setUseRawPreviewURL(false);
 
     setTimeout(() => {
-      turnOnCameraFn(telephotoCamera, connectionCtx);
+      if (connectionCtx.currentAstroCamera != wideangleCamera)
+        turnOnTeleCameraFn(connectionCtx);
+      else turnOnWideCameraFn(connectionCtx);
     }, 1000);
+    let gain = "gain";
+    let gainValue = connectionCtx.astroSettings.gain;
+    let exposureMode = "exposureMode";
+    let exposureModeValue = connectionCtx.astroSettings.exposureMode;
+    let exposure = "exposure";
+    let exposureValue = connectionCtx.astroSettings.exposure;
+
+    if (connectionCtx.currentAstroCamera != wideangleCamera) {
+      setTimeout(() => {
+        updateTelescopeISPSetting(
+          "gainMode",
+          connectionCtx.astroSettings.gainMode as number,
+          connectionCtx
+        );
+      }, 1000);
+      setTimeout(() => {
+        updateTelescopeISPSetting(
+          "IR",
+          connectionCtx.astroSettings.IR as number,
+          connectionCtx
+        );
+      }, 3500);
+    } else {
+      gain = "wideGain";
+      gainValue = connectionCtx.astroSettings.wideGain;
+      exposureMode = "wideExposureMode";
+      exposureModeValue = connectionCtx.astroSettings.wideExposureMode;
+      exposure = "wideExposure";
+      exposureValue = connectionCtx.astroSettings.wideExposure;
+    }
+
     setTimeout(() => {
       updateTelescopeISPSetting(
-        "gainMode",
-        connectionCtx.astroSettings.gainMode as number,
-        connectionCtx
-      );
-    }, 1500);
-    setTimeout(() => {
-      updateTelescopeISPSetting(
-        "exposureMode",
-        connectionCtx.astroSettings.exposureMode as number,
+        exposureMode,
+        exposureModeValue as number,
         connectionCtx
       );
     }, 2000);
     setTimeout(() => {
-      updateTelescopeISPSetting(
-        "gain",
-        connectionCtx.astroSettings.gain as number,
-        connectionCtx
-      );
+      updateTelescopeISPSetting(gain, gainValue as number, connectionCtx);
     }, 2500);
     setTimeout(() => {
       updateTelescopeISPSetting(
-        "exposure",
-        connectionCtx.astroSettings.exposure as number,
+        exposure,
+        exposureValue as number,
         connectionCtx
       );
     }, 3000);
-    setTimeout(() => {
-      updateTelescopeISPSetting(
-        "IR",
-        connectionCtx.astroSettings.IR as number,
-        connectionCtx
-      );
-    }, 3500);
   }
 
-  function endImagingSession() {
-    clearInterval(sessionTimer);
-    setSessionTimer(undefined);
-    setIsRecording(false);
+  function focusMinus() {
+    focusAction(false, false, false, 1);
+  }
+
+  function focusMinusLong() {
+    focusAction(false, true, false, 1);
+  }
+
+  function focusLongStop() {
+    focusAction(false, true, true, 0);
+  }
+
+  function focusPlus() {
+    focusAction(false, false, false, 0);
+  }
+
+  function focusPlusLong() {
+    focusAction(false, true, false, 0);
+  }
+
+  function focusAutoAstro() {
+    console.log("Astro click");
+    setAstroFocus(true);
+    focusAction(true, false, false, 0, 1);
+  }
+
+  function focusAutoAstroStop() {
+    setAstroFocus(false);
+    focusAction(true, false, true, 0);
+  }
+
+  const handleRightClick = (event) => {
+    event.preventDefault(); // Prevent default context menu
+    console.log("Right-click detected!");
+    // Your custom logic for right-click event
+    console.log("Astro Right click");
+    setAstroFocus(true);
+    focusAction(true, false, false, 0, 0);
+  };
+
+  function focusAction(Astro, Continu, Stop, Direction, ModeAstro = 1) {
+    if (connectionCtx.IPDwarf === undefined) {
+      return;
+    }
+
+    const customMessageHandler = (txt_info, result_data) => {
+      // CMD_FOCUS_START_ASTRO_AUTO_FOCUS
+      // CMD_FOCUS_STOP_ASTRO_AUTO_FOCUS
+      // CMD_FOCUS_MANUAL_SINGLE_STEP_FOCUS
+      // CMD_FOCUS_START_MANUAL_CONTINU_FOCUS
+      // CMD_FOCUS_STOP_MANUAL_CONTINU_FOCUS
+      if (
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_FOCUS_START_ASTRO_AUTO_FOCUS ||
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_FOCUS_STOP_ASTRO_AUTO_FOCUS ||
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_FOCUS_MANUAL_SINGLE_STEP_FOCUS ||
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_FOCUS_START_MANUAL_CONTINU_FOCUS ||
+        result_data.cmd ==
+          Dwarfii_Api.DwarfCMD.CMD_FOCUS_STOP_MANUAL_CONTINU_FOCUS
+      ) {
+        if (result_data.data.code != Dwarfii_Api.DwarfErrorCode.OK) {
+          console.debug("Focus error", {}, connectionCtx);
+        } else {
+          console.debug("Focus ok", {}, connectionCtx);
+        }
+      } else {
+        console.debug("", result_data, connectionCtx);
+      }
+      console.debug(txt_info, result_data, connectionCtx);
+    };
+
+    console.log("socketIPDwarf: ", connectionCtx.socketIPDwarf); // Create WebSocketHandler if need
+    const webSocketHandler = connectionCtx.socketIPDwarf
+      ? connectionCtx.socketIPDwarf
+      : new WebSocketHandler(connectionCtx.IPDwarf);
+
+    // Send Command : messageFocusStartAstroAutoFocus
+    let WS_Packet;
+    let txtInfoCommand;
+    let Cmd;
+    if (Astro && !Continu && !Stop) {
+      WS_Packet = messageFocusStartAstroAutoFocus(ModeAstro);
+      txtInfoCommand = "AstroFocus";
+      Cmd = [Dwarfii_Api.DwarfCMD.CMD_FOCUS_START_ASTRO_AUTO_FOCUS];
+      console.log("Focus : CMD_FOCUS_START_ASTRO_AUTO_FOCUS");
+    }
+    if (Astro && !Continu && Stop) {
+      WS_Packet = messageFocusStopAstroAutoFocus();
+      txtInfoCommand = "AstroFocus";
+      Cmd = [Dwarfii_Api.DwarfCMD.CMD_FOCUS_STOP_ASTRO_AUTO_FOCUS];
+      console.log("Focus : CMD_FOCUS_STOP_ASTRO_AUTO_FOCUS");
+    }
+    if (!Astro && Continu && !Stop) {
+      WS_Packet = messageFocusStartManualContinuFocus(Direction);
+      txtInfoCommand = "AstroFocus";
+      Cmd = [Dwarfii_Api.DwarfCMD.CMD_FOCUS_START_MANUAL_CONTINU_FOCUS];
+      console.log("Focus : CMD_FOCUS_START_MANUAL_CONTINU_FOCUS");
+    }
+    if (!Astro && Continu && Stop) {
+      WS_Packet = messageFocusStopManualContinuFocus();
+      txtInfoCommand = "AstroFocus";
+      Cmd = [Dwarfii_Api.DwarfCMD.CMD_FOCUS_STOP_MANUAL_CONTINU_FOCUS];
+      console.log("Focus : CMD_FOCUS_STOP_MANUAL_CONTINU_FOCUS");
+    }
+    if (!Astro && !Continu) {
+      WS_Packet = messageFocusManualSingleStepFocus(Direction);
+      txtInfoCommand = "AstroFocus";
+      Cmd = [Dwarfii_Api.DwarfCMD.CMD_FOCUS_MANUAL_SINGLE_STEP_FOCUS];
+      console.log("Focus : CMD_FOCUS_MANUAL_SINGLE_STEP_FOCUS");
+    }
+
+    webSocketHandler.prepare(
+      WS_Packet,
+      txtInfoCommand,
+      Cmd,
+      customMessageHandler
+    );
+
+    if (!webSocketHandler.run()) {
+      console.error(" Can't launch Web Socket Run Action!");
+    }
   }
 
   function renderRecordButton() {
+    console.log("Record Button");
     // don't have clickable record button if the setting menu is shown
     if (showSettingsMenu) {
+      console.log("Record Button1");
       return <RecordButton />;
       // display clickable record button if all fields are completed
     } else if (validSettings) {
-      if (isRecording) {
-        return <RecordingButton onClick={stopAstroPhotoHandler} />;
+      console.log("Record Button2");
+      if (
+        connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording
+      ) {
+        console.log("Record Button3");
+        return (
+          <RecordingButton
+            onClick={stopAstroPhotoHandler}
+            color_stroke={"red"}
+            title="Stop Recording"
+          />
+        );
+      } else if (connectionCtx.imagingSession.isGoLive) {
+        console.log("Record Button5");
+        // Live Button is on
+        return (
+          <RecordButton
+            onClick={() => {
+              goLiveHandler();
+            }}
+            title="End Current Session"
+          />
+        );
+      } else if (connectionCtx.imagingSession.endRecording) {
+        console.log("Record Button4");
+        return (
+          <RecordingButton
+            onClick={() => {
+              goLiveHandler();
+            }}
+            color_stroke={"currentColor"}
+            title="Wait till the End of Stacking"
+          />
+        );
       } else {
-        return <RecordButton onClick={takeAstroPhotoHandler} />;
+        console.log("Record Button OK");
+        return (
+          <RecordButton
+            onClick={takeAstroPhotoHandler}
+            title="Start Recording"
+          />
+        );
       }
       // if fields are not filled in, display warning
     } else {
@@ -272,15 +726,120 @@ export default function ImagingMenu(props: PropType) {
     );
   };
 
+  /*
+  let startTime;
+  let isLongPress = false;
+
+  function handleMouseDown() {
+    startTime = new Date().getTime();
+
+    // Set a timeout for the long press
+    setTimeout(() => {
+      isLongPress = true;
+      console.log("Long press detected");
+    }, 500); // Adjust the duration as needed
+  }
+
+  function handleMouseUp() {
+    const endTime = new Date().getTime();
+    const duration = endTime - startTime;
+
+    // Check if it was a short click
+    if (duration < 500 && !isLongPress) {
+      console.log("Short click detected");
+      // Perform your action for a short click
+    }
+
+    // Reset variables for the next interaction
+    startTime = 0;
+    isLongPress = false;
+  }
+  */
+  function anim_close() {
+    const joystickContainer = document.querySelector(
+      ".joystick-container"
+    ) as HTMLElement;
+    // Check if the element is found
+    if (joystickContainer) {
+      const animationDuration = 500; // 0.5 seconds
+      const start = performance.now();
+
+      const animateHide = (timestamp) => {
+        const elapsed = timestamp - start;
+        const opacity = 1 - elapsed / animationDuration;
+
+        joystickContainer.style.opacity = opacity.toString();
+
+        if (opacity > 0) {
+          requestAnimationFrame(animateHide);
+        } else {
+          joystickContainer.style.display = "none";
+        }
+      };
+      requestAnimationFrame(animateHide);
+    }
+  }
+
+  function checkPhotoMode() {
+    if (
+      connectionCtx.imagingSession.isRecording ||
+      connectionCtx.imagingSession.endRecording ||
+      connectionCtx.imagingSession.isGoLive
+    ) {
+      if (showModal) setShowModal(false);
+      return (
+        <Link href="#" className="" onClick={() => {}}>
+          {getAstroText()}
+        </Link>
+      );
+    }
+    return "";
+  }
+
+  function getAstroText() {
+    let strAstroText = "Astro";
+    if (connectionCtx.typeIdDwarf != 1) {
+      if (connectionCtx.currentAstroCamera != wideangleCamera)
+        strAstroText += " TELE";
+      else strAstroText += " WIDE";
+    }
+    return strAstroText;
+  }
+
   return (
     <ul className="nav nav-pills flex-column mb-auto border">
       <li className={`nav-item ${styles.box}`}>
-        <Link href="#" className="">
-          Astro
-        </Link>
+        {checkPhotoMode()}
+        {!showModal &&
+          !connectionCtx.imagingSession.isRecording &&
+          !connectionCtx.imagingSession.endRecording && (
+            <Link
+              href="#"
+              className=""
+              onClick={() => {
+                setShowModal(true);
+              }}
+            >
+              {getAstroText()}
+            </Link>
+          )}
+        {showModal &&
+          !connectionCtx.imagingSession.isRecording &&
+          !connectionCtx.imagingSession.endRecording && (
+            <Link
+              href="#"
+              className=""
+              onClick={() => {
+                setShowModal(false);
+                anim_close();
+              }}
+            >
+              Photo
+            </Link>
+          )}
       </li>
       <li className={`nav-item ${styles.box}`}>
-        <Link href="#" className="">
+        <Link href="#" className="" title="Show Settings">
           <OverlayTrigger
             trigger="click"
             placement={"left"}
@@ -308,28 +867,194 @@ export default function ImagingMenu(props: PropType) {
         </Link>
       </li>
       <li className={`nav-item ${styles.box}`}>
-        <Link
-          href="#"
-          className=""
-          onClick={() => setShowWideangle((prev) => !prev)}
-        >
-          <i
-            className="bi bi-pip"
-            style={{
-              fontSize: "1.75rem",
-              transform: "rotate(180deg)",
-              display: "inline-block",
+        {!showWideAngle && (
+          <Link
+            href="#"
+            className=""
+            onClick={() => {
+              setShowWideangle((prev) => !prev);
+              setShowWideAngle((prev) => !prev);
             }}
-          ></i>
-        </Link>
-      </li>
-      {!isRecording && connectionCtx.imagingSession.startTime && (
-        <li className={`nav-item ${styles.box}`}>
-          <Link href="#" className="" onClick={endPreview}>
-            Live
+            title="Show Wideangle"
+          >
+            <i
+              className="bi bi-pip"
+              style={{
+                fontSize: "1.75rem",
+                transform: "rotate(180deg)",
+                display: "inline-block",
+              }}
+            ></i>
           </Link>
-        </li>
-      )}
+        )}
+        {showWideAngle && !exchangeCamerasStatus && (
+          <Link
+            href="#"
+            className=""
+            onClick={() => {
+              setShowWideangle((prev) => !prev);
+              setShowWideAngle((prev) => !prev);
+            }}
+            title="Hide Wideangle"
+          >
+            <i
+              className="bi bi-pip"
+              style={{
+                fontSize: "1.75rem",
+                transform: "rotate(180deg)",
+                display: "inline-block",
+              }}
+            ></i>
+          </Link>
+        )}
+      </li>
+      {!connectionCtx.imagingSession.isRecording &&
+        connectionCtx.imagingSession.isGoLive && (
+          <li className={`nav-item ${styles.box}`}>
+            <Link
+              href="#"
+              className=""
+              onClick={() => {
+                goLiveHandler();
+              }}
+              title="End Current Session"
+            >
+              Live
+            </Link>
+          </li>
+        )}
+      <hr />
+      {!connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording &&
+        !astroFocus && (
+          <div onContextMenu={handleRightClick}>
+            <li className={`nav-item ${styles.box}`}>
+              <Link
+                href="#"
+                className=""
+                onClick={focusAutoAstro}
+                title="Astro Infinite Focus, Right Click Auto Focus"
+              >
+                <i
+                  className="icon-bullseye"
+                  style={{
+                    fontSize: "2rem",
+                  }}
+                ></i>
+              </Link>
+            </li>
+            {connectionCtx.valueFocusDwarf !== undefined && (
+              <span style={{ display: "block", textAlign: "center" }}>
+                {connectionCtx.valueFocusDwarf}
+              </span>
+            )}
+          </div>
+        )}
+      {!connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording &&
+        astroFocus && (
+          <div>
+            <li className={`nav-item ${styles.box}`}>
+              <Link
+                href="#"
+                className=""
+                onClick={focusAutoAstroStop}
+                title="Astro Focus Stop"
+              >
+                <i
+                  className="icon-bullseye"
+                  style={{
+                    fontSize: "2rem",
+                  }}
+                ></i>
+              </Link>
+            </li>
+            {connectionCtx.valueFocusDwarf !== undefined && (
+              <span style={{ display: "block", textAlign: "center" }}>
+                {connectionCtx.valueFocusDwarf}
+              </span>
+            )}
+          </div>
+        )}
+      <hr />
+      {!connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording && (
+          <li className={`nav-item ${styles.box}`}>
+            <Link
+              href="#"
+              className=""
+              onClick={focusPlus}
+              title="Focus + Click"
+            >
+              <i
+                className="icon-plus-squared-alt"
+                style={{
+                  fontSize: "2rem",
+                }}
+              ></i>
+            </Link>
+          </li>
+        )}
+      <hr />
+      {!connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording && (
+          <li className={`nav-item ${styles.box}`}>
+            <Link
+              href="#"
+              className=""
+              onClick={focusMinus}
+              title="Focus - Click"
+            >
+              <i
+                className="icon-minus-squared-alt"
+                style={{
+                  fontSize: "2rem",
+                }}
+              ></i>
+            </Link>
+          </li>
+        )}
+      <hr />
+      {!connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording && (
+          <li className={`nav-item ${styles.box}`}>
+            <Link
+              href="#"
+              className=""
+              onMouseDown={focusPlusLong}
+              onMouseUp={focusLongStop}
+              title="Focus + Long Press"
+            >
+              <i
+                className="icon-plus-squared"
+                style={{
+                  fontSize: "2rem",
+                }}
+              ></i>
+            </Link>
+          </li>
+        )}
+      <hr />
+      {!connectionCtx.imagingSession.isRecording &&
+        !connectionCtx.imagingSession.endRecording && (
+          <li className={`nav-item ${styles.box}`}>
+            <Link
+              href="#"
+              className=""
+              onMouseDown={focusMinusLong}
+              onMouseUp={focusLongStop}
+              title="Focus - Long Press"
+            >
+              <i
+                className="icon-minus-squared"
+                style={{
+                  fontSize: "2rem",
+                }}
+              ></i>
+            </Link>
+          </li>
+        )}
+      <CameraAddOn showModal={showModal} setShowModal={setShowModal} />
     </ul>
   );
 }

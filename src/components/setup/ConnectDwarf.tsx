@@ -1,30 +1,76 @@
-import { useContext, useState } from "react";
-import type { FormEvent } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
+import { useEffect, useContext, useState, useRef } from "react";
+import type { FormEvent, ChangeEvent } from "react";
 
-import {
-  wsURL,
-  statusTelephotoCmd,
-  statusWideangleCmd,
-  cameraSettings,
-  socketSend,
-} from "dwarfii_api";
+import CmdHostLockDwarf from "@/components/setup/CmdHostLockDwarf";
+
 import { ConnectionContext } from "@/stores/ConnectionContext";
-import {
-  saveConnectionStatusDB,
-  saveInitialConnectionTimeDB,
-  saveIPDwarfDB,
-} from "@/db/db_utils";
-import { logger } from "@/lib/logger";
+import { saveIPDwarfDB, saveIPConnectDB } from "@/db/db_utils";
+
+import { connectionHandler } from "@/lib/connect_utils";
+
+const DwarfClientID_original = "0000DAF2-0000-1000-8000-00805F9B34FB";
+const DwarfClientID_base = "0000DAF2-0000-1000-8000-00805F9B35";
+
+import { DwarfClientID, setDwarfClientID, WebSocketHandler } from "dwarfii_api";
 
 export default function ConnectDwarf() {
   let connectionCtx = useContext(ConnectionContext);
+  const [currentDwarfClientID, setCurrentDwarfClientID] =
+    useState(DwarfClientID); // Store initial DwarfClientID
+  const [isChecked, setIsChecked] = useState(false); // Track checkbox state
+  const [randomDwarfClientID, setRandomDwarfClientID] = useState("");
+  const originalDwarfClientID = useRef(DwarfClientID_original);
 
+  const [showHelp, setShowHelp] = useState(false);
+  const [ipAuto, setIpAuto] = useState(false); // Connection state
+  const [ipValue, setIpValue] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [slavemode, setSlavemode] = useState(false);
+  const [goLive, setGoLive] = useState(false);
+  const [errorTxt, setErrorTxt] = useState("");
+  const [debouncedValue, setDebouncedValue] = useState(""); // Debounced value
 
-  function checkConnection(e: FormEvent<HTMLFormElement>) {
+  // Debouncing logic
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(ipValue); // Update debounced value after delay
+    }, 1500);
+
+    return () => {
+      clearTimeout(handler); // Clear timeout on cleanup
+    };
+  }, [ipValue]);
+
+  // Trigger logic when the debounced value changes
+  useEffect(() => {
+    if (debouncedValue !== "") {
+      connectionCtx.setIPDwarf(debouncedValue);
+      saveIPDwarfDB(debouncedValue);
+    }
+  }, [debouncedValue]);
+
+  useEffect(() => {
+    console.log("originalDwarfClientID:" + originalDwarfClientID.current);
+    console.log("DwarfClientID:" + DwarfClientID);
+    setIsChecked(originalDwarfClientID.current != DwarfClientID);
+  }, []);
+
+  useEffect(() => {
+    console.log("new IPDwarf:" + connectionCtx.IPDwarf);
+    if (connectionCtx.IPDwarf != undefined) {
+      setIpAuto(true);
+      setIpValue(connectionCtx.IPDwarf);
+      setTimeout(reactiveIP, 500);
+    }
+  }, [connectionCtx.IPDwarf]);
+
+  function reactiveIP() {
+    setIpAuto(false);
+  }
+  async function checkConnection(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    setConnecting(true);
 
     const formData = new FormData(e.currentTarget);
     const formIP = formData.get("ip");
@@ -37,116 +83,256 @@ export default function ConnectDwarf() {
     setConnecting(true);
     connectionCtx.setIPDwarf(IPDwarf);
     saveIPDwarfDB(IPDwarf);
+    console.log(
+      "Start connection with " + IPDwarf + " using ClientID: " + DwarfClientID
+    );
+    console.log("Current ClientID: " + currentDwarfClientID);
+    connectionHandler(
+      connectionCtx,
+      IPDwarf,
+      true,
+      setConnecting,
+      setSlavemode,
+      setGoLive,
+      setErrorTxt
+    );
+  }
 
-    const socket = new WebSocket(wsURL(IPDwarf));
-
-    socket.addEventListener("open", () => {
-      let options = cameraSettings();
-      logger("start cameraSettings...", options, connectionCtx);
-      socketSend(socket, options);
-    });
-
-    // close socket is request takes too long
-    let closeSocketTimer = setTimeout(() => {
-      setConnecting(false);
-      connectionCtx.setConnectionStatus(false);
-      saveConnectionStatusDB(false);
-      socket.close();
-    }, 3000);
-
-    socket.addEventListener("message", (event) => {
-      clearTimeout(closeSocketTimer);
-      setConnecting(false);
-
-      let message = JSON.parse(event.data);
-      if (
-        message.interface === statusTelephotoCmd ||
-        message.interface === statusWideangleCmd
-      ) {
-        logger("cameraSettings:", message, connectionCtx);
-        connectionCtx.setConnectionStatus(true);
-        connectionCtx.setInitialConnectionTime(Date.now());
-        saveConnectionStatusDB(true);
-        saveInitialConnectionTimeDB();
-      } else {
-        logger("", message, connectionCtx);
-      }
-    });
-
-    socket.addEventListener("error", (error) => {
-      logger("cameraSettings error:", error, connectionCtx);
-      clearTimeout(closeSocketTimer);
-      setConnecting(false);
-      connectionCtx.setConnectionStatus(false);
-      saveConnectionStatusDB(false);
-    });
+  function ipHandler(e: ChangeEvent<HTMLInputElement>) {
+    let value = e.target.value.trim();
+    if (value === "") return;
+    console.log("ipHandler");
+    setIpValue(value);
   }
 
   function renderConnectionStatus() {
+    let goLiveMessage = "";
+    if (goLive) {
+      goLiveMessage = "=> Go Live";
+    }
     if (connecting) {
-      return <span>Connecting...</span>;
+      return <span className="text-warning-connect">{t("pConnecting")}</span>;
     }
     if (connectionCtx.connectionStatus === undefined) {
       return <></>;
     }
     if (connectionCtx.connectionStatus === false) {
-      return <span className="text-danger">Connection failed.</span>;
+      return (
+        <span className="text-danger">
+          {t("pConnectingFailed")}
+          {errorTxt}.
+        </span>
+      );
+    }
+    if (connectionCtx.connectionStatusSlave || slavemode) {
+      return (
+        <span className="text-warning">
+          {t("pConnectionSuccessFull")} (Slave Mode) {goLiveMessage}
+          {errorTxt}.
+        </span>
+      );
     }
 
-    return <span className="text-success">Connection successful.</span>;
+    return (
+      <span className="text-success-connect">
+        {t("pConnectionSuccessFull")} {goLiveMessage}
+        {errorTxt}
+      </span>
+    );
   }
+
+  const renderCmdHostLockDwarf = () => {
+    // Your logic for rendering CmdHostLockDwarf
+    // Example:
+    return <CmdHostLockDwarf />;
+  };
+
+  function forceDisconnect() {
+    if (connectionCtx.IPDwarf === undefined) {
+      return;
+    }
+
+    const webSocketHandler = connectionCtx.socketIPDwarf
+      ? connectionCtx.socketIPDwarf
+      : new WebSocketHandler(connectionCtx.IPDwarf);
+
+    // send command to Force Disconnect
+    webSocketHandler.cleanup(true);
+    saveIPConnectDB("");
+    connectionCtx.setConnectionStatus(false);
+  }
+
+  function generateRandomDwarfID() {
+    // Generate a random value between 0x00 and 0xFF (255 in decimal)
+    const randomValue = Math.floor(Math.random() * 256); // 256 because Math.random() generates 0 to <1
+
+    const randomHex = randomValue.toString(16).padStart(2, "0").toUpperCase();
+
+    return DwarfClientID_base + randomHex;
+  }
+
+  function updateDwarfID() {
+    const newRandomID = generateRandomDwarfID();
+    setRandomDwarfClientID(newRandomID);
+    setCurrentDwarfClientID(newRandomID);
+    setDwarfClientID(newRandomID);
+    console.log("New ClientID generated: " + newRandomID);
+  }
+
+  // Handle checkbox change
+  const handleCheckboxChange = (event) => {
+    const isChecked = event.target.checked;
+    setIsChecked(isChecked);
+
+    forceDisconnect();
+    if (isChecked) {
+      // If a random ID was already generated, use that. Otherwise, generate a new one
+      if (!randomDwarfClientID) {
+        updateDwarfID();
+      } else {
+        setCurrentDwarfClientID(randomDwarfClientID); // Use existing random ID
+        setDwarfClientID(randomDwarfClientID);
+      }
+    } else {
+      // Revert to the original DwarfClientID when unchecked
+      setCurrentDwarfClientID(originalDwarfClientID.current); // Revert to original
+      setDwarfClientID(originalDwarfClientID.current); // Restore original in the backend
+    }
+  };
+
+  const handleRefresh = (event) => {
+    event.preventDefault();
+
+    if (isChecked) {
+      forceDisconnect();
+      updateDwarfID();
+    }
+  };
+
+  const handleReset = (event) => {
+    event.preventDefault();
+
+    connectionCtx.setTypeIdDwarf(undefined);
+    connectionCtx.setTypeNameDwarf("");
+  };
+
+  const { t } = useTranslation();
+  // eslint-disable-next-line no-unused-vars
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setSelectedLanguage(storedLanguage);
+      i18n.changeLanguage(storedLanguage);
+    }
+  }, []);
 
   return (
     <div>
-      <h2>Connect to Dwarf II</h2>
+      <h2>
+        {t("pConnectDwarfII", { DwarfType: connectionCtx.typeNameDwarf })}
+      </h2>
 
       <p>
-        In order for this site to connect to the Dwarf II, both the Dwarf II and
-        the website must use the same wifi network.
+        {t("pConnectDwarfIIContent", {
+          DwarfType: connectionCtx.typeNameDwarf,
+        })}
       </p>
 
-      <ol>
-        <li className="mb-2">
-          Use the Dwarf II mobile app to connect to the telescope. You can use
-          the Dwarf wifi or set the Dwarf II to STA mode and use your normal
-          wifi network.
-        </li>
-        <li className="mb-2">
-          Visit this site on a device that is connected to the same wifi network
-          as the Dwarf II.
-        </li>
-        <li className="mb-2">
-          Enter in IP for the Dwarf II. If you are using Dwarf wifi, the IP is
-          192.168.88.1. If you are using STA mode, use the IP for your wifi
-          network.
-        </li>
-        <li className="mb-2">
-          Click Connect. This site will try to connect to Dwarf II.
-        </li>
-        <form onSubmit={checkConnection} className="mb-3">
-          <div className="row mb-3">
-            <div className="col-md-1">
-              <label htmlFor="ip" className="form-label">
-                IP
-              </label>
-            </div>
-            <div className="col-md-11">
-              <input
-                className="form-control"
-                id="ip"
-                name="ip"
-                placeholder="127.00.00.00"
-                required
-                defaultValue={connectionCtx.IPDwarf}
-              />
-            </div>
+      <div
+        title={showHelp ? t("pHideHelp") : t("pShowHelp")}
+        className={`help-msg nav-link me-2`}
+        onClick={() => setShowHelp((prev) => !prev)}
+      >
+        <i className="bi bi-info-square"></i>
+      </div>
+      {showHelp && (
+        <ol>
+          <li className="mb-2">
+            {t("pConnectDwarfIIContent1", {
+              DwarfType: connectionCtx.typeNameDwarf,
+            })}
+          </li>
+          <li className="mb-2">{t("pConnectDwarfIIContent2")}</li>
+          <li className="mb-2">
+            {t("pConnectDwarfIIContent3", {
+              DwarfType: connectionCtx.typeNameDwarf,
+            })}
+          </li>
+          <li className="mb-2">
+            {t("pConnectDwarfIIContent4", {
+              DwarfType: connectionCtx.typeNameDwarf,
+            })}
+          </li>
+          <li className="mb-2">
+            {t("pConnectDwarfIIContent5", {
+              DwarfType: connectionCtx.typeNameDwarf,
+            })}
+          </li>
+          <li className="mb-4">{t("pConnectDwarfIIContent6")}</li>
+        </ol>
+      )}
+      <br />
+      <form onSubmit={checkConnection} className="mb-3">
+        <div className="row mb-3">
+          <div className="col-md-1">
+            <label htmlFor="notify" className="form-label">
+              {connectionCtx.typeNameDwarf}
+            </label>
           </div>
-          <button type="submit" className="btn btn-primary me-3">
-            Connect
-          </button>{" "}
-          {renderConnectionStatus()}
-        </form>
-      </ol>
+          <div className="col">
+            <button className="btn-refresh" onClick={handleReset}>
+              <i className="fa fa-refresh" aria-hidden="true"></i>
+            </button>{" "}
+            {t("pResetDwarfType")}
+          </div>
+        </div>
+        <div className="row mb-3">
+          <div className="col-md-1">
+            <label htmlFor="notify" className="form-label">
+              Specific ID
+            </label>
+          </div>
+          <div className="col">
+            <input
+              type="checkbox"
+              id="notify"
+              name="notify"
+              checked={isChecked}
+              onChange={(e) => handleCheckboxChange(e)}
+            />{" "}
+            <button className="btn-refresh" onClick={handleRefresh}>
+              <i className="fa fa-refresh" aria-hidden="true"></i>
+            </button>{" "}
+            {t("pConnectPrivateID")}
+          </div>
+        </div>
+        <div className="row mb-3">
+          <div className="col-md-1">
+            <label htmlFor="ip" className="form-label">
+              {t("pIPAddress")}
+            </label>
+          </div>
+          <div className="col-lg-2 col-md-10">
+            <input
+              className="form-control"
+              id="ip"
+              name="ip"
+              placeholder="127.0.0.1"
+              required
+              value={ipValue}
+              onChange={(e) => ipHandler(e)}
+              disabled={ipAuto}
+            />
+          </div>
+        </div>
+        <button type="submit" className="btn btn-more02 me-3">
+          <i className="icon-wifi" /> {t("pConnect")}
+        </button>{" "}
+        {renderConnectionStatus()}
+        {renderCmdHostLockDwarf()}
+      </form>
     </div>
   );
 }

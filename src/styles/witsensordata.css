@@ -1,0 +1,94 @@
+/* WitSensorData.css */
+
+
+.witsensor {
+    text-align: center;
+    /*margin-top: 20px;*/
+    margin-top: 95px;
+}
+
+.div-inner {
+    margin-left: 105px;
+    margin-top: 8px;
+}
+.witimage img {
+    max-width: 100%;
+}
+
+.camera-witmotion {
+    /*background-color: #f0f0f0;*/
+    /*padding: 20px;*/
+    /*margin-left: 305px;*/
+    justify-content: center;
+    
+    border-radius: 8px;
+    display: flex;
+    margin-top: -250px;
+}
+
+    .camera-witmotion h3 {
+        margin-top: 0;
+    }
+
+.camera-witmotion-content {
+    width: fit-content;
+    /*padding-left: 310px;*/
+    justify-content: center;
+    margin-top: 20px;
+    float: right;
+}
+
+.polar-align-wit {
+    text-align: center;
+    margin-top: -180px;
+    margin-left: 0%;
+}
+
+.witimage {
+    /*text-align: right;*/
+    margin-top: 20px;
+    display: flex;
+
+}
+
+.witimage img {
+    width: 150px;
+    margin-left: 25px;
+}
+
+.container-cam {
+    margin-top: 50px;
+}
+.camera-con {
+    margin-top: 50px;
+    width: 800px;
+}
+.mnu-polar {
+    margin-top: 28px;
+}
+.mnu-polar-con {
+    margin-top: 80px;
+    width:max-content;
+    float: right;
+    display:flex;
+}
+.altitude-description-wit {
+  width: 100%;
+  height: fit-content;
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center;     /* Center vertically */
+}
+.graph-wit{
+    margin-left: -490px;
+    margin-top:250px;
+    height: 20px;
+}
+
+.EQ-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;   /* Vertically center the items in the container */
+  align-content: center; /* Center multiple lines of flex items (if they wrap) */
+  gap: 8px;
+}

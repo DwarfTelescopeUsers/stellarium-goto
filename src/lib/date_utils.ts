@@ -45,3 +45,9 @@ export function calculateElapsedTime(
   let total = (now - startTime) / 1000;
   return convertSecondsToHMS(total);
 }
+
+export function toIsoStringInLocalTime(date: Date) {
+  return new Date(
+    date.getTime() + -date.getTimezoneOffset() * 60000
+  ).toISOString();
+}

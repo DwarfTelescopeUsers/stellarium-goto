@@ -1,44 +1,67 @@
+import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
+import i18n from "@/i18n";
+
 export default function Home() {
+  const { t } = useTranslation();
+  // eslint-disable-next-line no-unused-vars
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("en");
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setSelectedLanguage(storedLanguage);
+      i18n.changeLanguage(storedLanguage);
+    }
+  }, []);
+
   return (
-    <div>
-      <h1>Dwarf II App</h1>
-      <p>
-        This website allows you to control parts of the Dwarf II using the Dwarf
-        API.
-      </p>
-      Features:
-      <ul>
-        <li>Object list with over 250 objects.</li>
-        <li>Import objects lists from Telescopius.</li>
-        <li>Connect to Stellarium planeterium app to help select targets.</li>
-        <li>Take Astro photos.</li>
-        <li>1x1 binning for astro photos.</li>
-      </ul>
-      <p>
-        This website and the Dwarf API are in beta phase. The API hasn&apos;t
-        been officially released, and the API doesn&apos;t have all the features
-        of the mobile app, therefore this app has a very limited list of
-        features. Only use this app if you are comfortable with being testers
-        for beta software.
-      </p>
-      Bugs:
-      <ul>
-        <li>
-          The API does not correctly return the number images taken (10014).
-          Users should look at the mobile app to keep track of the imagining
-          progress.
-        </li>
-        <li>
-          Dwarf II ignores the API command to stop the taking astro photos
-          (10015) once imaging has started. Users need to use the mobile app to
-          stop taking photos.
-        </li>
-        <li>
-          Dwarf II&apos;s internal date url does not work in the browser because
-          of CORS (http://DWARF_IP:8092/date?date=).
-        </li>
-        <li>Goto does not move the Dwarf II to the correct position.</li>
-      </ul>
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
+    >
+      <section
+        className="daily-horp d-inline-block w-100"
+        style={{ flex: "1" }}
+      >
+        <div className="container">
+          <br />
+          <br />
+          <br />
+          <br />
+          <h1>
+            <b>
+              <u>Dwarfium</u>
+            </b>
+          </h1>
+          <br />
+          <p>{t("pIndexDescription")}.</p>
+          <br />
+          <b>{t("pIndexFeature")}:</b>
+          <ul>
+            <li>{t("pIndexFeature1")}</li>
+            <li>{t("pIndexFeature2")}</li>
+            <li>{t("pIndexFeature3")}</li>
+            <li>{t("pIndexFeature4")}</li>
+            <li>{t("pIndexFeature5")}</li>
+            <li>{t("pIndexFeature6")}</li>
+          </ul>
+          <br />
+          <p dangerouslySetInnerHTML={{ __html: t("pIndexClaimer") }}></p>
+          <br />
+          <b>{t("pIndexBugsHeader")}</b>
+          <ul>
+            <li>
+              {t("pIndexBug1")}
+              <div dangerouslySetInnerHTML={{ __html: t("pIndexLinkBug") }} />
+            </li>
+            <li>{t("pIndexBug2")}</li>
+            <li>{t("pIndexBug3")}</li>
+          </ul>
+        </div>
+      </section>
+      <br />
+      <br />
+      <br />
     </div>
   );
 }
